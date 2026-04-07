@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
 import { User, MessageCircle, ArrowRight } from 'lucide-react-native';
 
-const Bridge = ({ myAnchor, theirAnchor, onDismiss }) => {
+const Bridge = ({ myAnchor, theirAnchor, handshake, onDismiss }) => {
   const { theme } = useTheme();
 
   const styles = StyleSheet.create({
@@ -112,9 +112,11 @@ const Bridge = ({ myAnchor, theirAnchor, onDismiss }) => {
         </View>
 
         <View style={styles.scriptContainer}>
-          <Text style={styles.scriptText}>
-            "I like your {myAnchor}."
-          </Text>
+          <Text style={styles.label}>YOU SAY:</Text>
+          <Text style={styles.scriptText}>"{handshake?.call}"</Text>
+          <View style={{ height: 10 }} />
+          <Text style={styles.label}>THEY RESPOND:</Text>
+          <Text style={styles.scriptText}>"{handshake?.response}"</Text>
         </View>
 
         <TouchableOpacity
