@@ -1,26 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, Switch, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
 import { Settings, Info, Radio } from 'lucide-react-native';
 import Radar from '../components/Radar';
+import { loadNoList, saveNoList, loadInteractionTypes, saveInteractionTypes } from '../utils/storage';
 
 const HomeScreen = ({ onToggle, isActive }) => {
   const { theme, setThemeId, themes } = useTheme();
   const [noList, setNoList] = useState('');
-  const [interactionType, setInteractionType] = useState('conversation');
+  const [interactionTypes, setInteractionTypesSelected] = useState(['conversation']);
+
+  useEffect(() => {
+    loadNoList().then(setNoList);
+    loadInteractionTypes().then(setInteractionTypesSelected);
+  }, []);
+
+  const handleNoListChange = async (text) => {
+    setNoList(text);
+    await saveNoList(text);
+  };
+
+  const handleInteractionToggle = async (id) => {
+    Haptics.selectionAsync();
+    let newTypes;
+    if (interactionTypes.includes(id)) {
+      if (interactionTypes.length > 1) {
+        newTypes = interactionTypes.filter(t => t !== id);
+      } else {
+        return; // Must have at least one
+      }
+    } else {
+      if (interactionTypes.length < 3) {
+        newTypes = [...interactionTypes, id];
+      } else {
+        // Replace the oldest one or just ignore? Let's ignore if at 3.
+        return;
+      }
+    }
+    setInteractionTypesSelected(newTypes);
+    await saveInteractionTypes(newTypes);
+  };
+
+  const interactionOptions = [
+    { id: 'conversation', label: 'Conversation' },
+    { id: 'silent', label: 'Silent Coexistence' },
+    { id: 'activity', label: 'Shared Activity' },
+  ];
   const [showSettings, setShowSettings] = useState(false);
 
   const toggleActive = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     onToggle(!isActive);
   };
-
-  const interactionTypes = [
-    { id: 'conversation', label: 'Conversation' },
-    { id: 'silent', label: 'Silent Coexistence' },
-    { id: 'activity', label: 'Shared Activity' },
-  ];
 
   const styles = StyleSheet.create({
     container: {
@@ -165,18 +197,15 @@ const HomeScreen = ({ onToggle, isActive }) => {
         {!isActive && (
           <>
             <View style={styles.card}>
-              <Text style={styles.label}>Interaction Type</Text>
-              {interactionTypes.map((type) => (
+              <Text style={styles.label}>Interaction Type (Up to 3)</Text>
+              {interactionOptions.map((type) => (
                 <TouchableOpacity
                   key={type.id}
                   style={[
                     styles.interactionButton,
-                    interactionType === type.id && styles.interactionButtonActive
+                    interactionTypes.includes(type.id) && styles.interactionButtonActive
                   ]}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setInteractionType(type.id);
-                  }}
+                  onPress={() => handleInteractionToggle(type.id)}
                 >
                   <Text style={styles.interactionText}>{type.label}</Text>
                 </TouchableOpacity>
@@ -192,7 +221,7 @@ const HomeScreen = ({ onToggle, isActive }) => {
                 maxLength={50}
                 multiline
                 value={noList}
-                onChangeText={setNoList}
+                onChangeText={handleNoListChange}
               />
               <Text style={styles.charCount}>{noList.length}/50</Text>
             </View>
