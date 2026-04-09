@@ -6,7 +6,9 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test:jest": "jest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
@@ -32,7 +34,11 @@
     "@babel/core": "^7.29.0",
     "@babel/preset-env": "^7.29.2",
     "@babel/preset-react": "^7.28.5",
+    "@playwright/test": "^1.59.1",
+    "@testing-library/react-hooks": "^8.0.1",
     "babel-jest": "^30.3.0",
-    "jest": "^30.3.0"
+    "babel-preset-expo": "^55.0.16",
+    "jest": "^30.3.0",
+    "react-test-renderer": "^19.2.5"
   }
 }
