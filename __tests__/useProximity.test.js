@@ -1,38 +1,38 @@
-import { renderHook, act } from '@testing-library/react-hooks';
+import { renderHook, act } from '@testing-library/react-native';
 import { useProximity } from '../src/hooks/useProximity';
 
 // Mocking setTimeout
 jest.useFakeTimers();
 
 describe('useProximity', () => {
-  it('should start in "none" state', () => {
-    const { result } = renderHook(() => useProximity(false));
+  it('should start in "none" state', async () => {
+    const { result } = await renderHook(() => useProximity(false));
     expect(result.current.matchingState).toBe('none');
   });
 
-  it('should transition to "finding" when active', () => {
-    const { result } = renderHook(() => useProximity(true));
+  it('should transition to "finding" when active', async () => {
+    const { result } = await renderHook(() => useProximity(true));
     expect(result.current.matchingState).toBe('finding');
   });
 
-  it('should transition to "match_found" after delay', () => {
-    const { result } = renderHook(() => useProximity(true));
+  it('should transition to "match_found" after delay', async () => {
+    const { result } = await renderHook(() => useProximity(true));
 
-    act(() => {
+    await act(async () => {
       jest.advanceTimersByTime(11000);
     });
 
     expect(result.current.matchingState).toBe('match_found');
   });
 
-  it('should transition to "bridge" when match is accepted', () => {
-    const { result } = renderHook(() => useProximity(true));
+  it('should transition to "bridge" when match is accepted', async () => {
+    const { result } = await renderHook(() => useProximity(true));
 
-    act(() => {
+    await act(async () => {
       jest.advanceTimersByTime(11000);
     });
 
-    act(() => {
+    await act(async () => {
       result.current.acceptMatch('My Anchor', (a, b) => ({ call: a, response: b }));
     });
 
@@ -42,16 +42,18 @@ describe('useProximity', () => {
     expect(result.current.matchData.call).toBe('My Anchor');
   });
 
-  it('should reset when deactivated', () => {
-    const { result, rerender } = renderHook(({ active }) => useProximity(active), {
+  it('should reset when deactivated', async () => {
+    const { result, rerender } = await renderHook(({ active }) => useProximity(active), {
       initialProps: { active: true }
     });
 
-    act(() => {
+    await act(async () => {
       jest.advanceTimersByTime(11000);
     });
 
-    rerender({ active: false });
+    await act(async () => {
+      await rerender({ active: false });
+    });
 
     expect(result.current.matchingState).toBe('none');
     expect(result.current.myAnchor).toBe('');
