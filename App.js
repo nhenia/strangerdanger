@@ -3,6 +3,7 @@ import { StyleSheet, View, StatusBar, SafeAreaView } from 'react-native';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { loadIsActive, saveIsActive, loadInteractionTypes } from './src/utils/storage';
 import { generateHandshake } from './src/utils/scripts';
+import { useProximity } from './src/hooks/useProximity';
 import AnimatedBackground from './src/components/AnimatedBackground';
 import HomeScreen from './src/screens/HomeScreen';
 import MatchFound from './src/screens/MatchFound';
@@ -16,46 +17,28 @@ const MainApp = () => {
     loadIsActive().then(setIsActive);
   }, []);
 
+  const {
+    matchingState,
+    myAnchor,
+    theirAnchor,
+    matchData,
+    acceptMatch,
+    reset
+  } = useProximity(isActive);
+
   const handleToggleActive = async (val) => {
     setIsActive(val);
     await saveIsActive(val);
   };
-  const [matchingState, setMatchingState] = useState('none'); // none, finding, match_found, bridge
-  const [myAnchor, setMyAnchor] = useState('');
-  const [theirAnchor, setTheirAnchor] = useState('');
-  const [handshake, setHandshake] = useState(null);
-
-  useEffect(() => {
-    let timer;
-    if (isActive && (matchingState === 'none' || matchingState === 'finding')) {
-      if (matchingState === 'none') setMatchingState('finding');
-
-      timer = setTimeout(() => {
-        setMatchingState('match_found');
-      }, 7000); // 7 seconds delay
-    } else if (!isActive) {
-      setMatchingState('none');
-    }
-    return () => clearTimeout(timer);
-  }, [isActive, matchingState]);
 
   const handleMatchAccept = async (anchor) => {
-    setMyAnchor(anchor);
-    // Simulated anchor for the other person
-    const sampleAnchors = ['Blue Book', 'Red Cap', 'Green Scarf', 'Corner Table', 'Laptop stickers'];
-    const selectedTheirAnchor = sampleAnchors[Math.floor(Math.random() * sampleAnchors.length)];
-    setTheirAnchor(selectedTheirAnchor);
-
     const interactionTypes = await loadInteractionTypes();
-    const newHandshake = generateHandshake(interactionTypes, anchor, selectedTheirAnchor);
-    setHandshake(newHandshake);
-
-    setMatchingState('bridge');
+    acceptMatch(anchor, (my, their) => generateHandshake(interactionTypes, my, their));
   };
 
   const handleDismiss = () => {
     setIsActive(false);
-    setMatchingState('none');
+    reset();
   };
 
   return (
@@ -67,7 +50,7 @@ const MainApp = () => {
         <Bridge
           myAnchor={myAnchor}
           theirAnchor={theirAnchor}
-          handshake={handshake}
+          handshake={matchData}
           onDismiss={handleDismiss}
         />
       ) : matchingState === 'match_found' ? (
