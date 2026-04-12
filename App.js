@@ -19,6 +19,7 @@ const MainApp = () => {
 
   const {
     matchingState,
+    signalStrength,
     myAnchor,
     theirAnchor,
     matchData,
@@ -56,7 +57,12 @@ const MainApp = () => {
       ) : matchingState === 'match_found' ? (
         <MatchFound onAccept={handleMatchAccept} />
       ) : (
-        <HomeScreen isActive={isActive} onToggle={handleToggleActive} />
+        <HomeScreen
+          isActive={isActive}
+          onToggle={handleToggleActive}
+          matchingState={matchingState}
+          signalStrength={signalStrength}
+        />
       )}
     </SafeAreaView>
   );

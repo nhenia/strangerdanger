@@ -1,44 +1,38 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Animated, Easing, Text } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
-import { Radio } from 'lucide-react-native';
+import { Radio, SignalMedium, SignalLow, SignalHigh, Signal } from 'lucide-react-native';
 
-const Radar = ({ isActive }) => {
+const Radar = ({ isActive, matchingState, signalStrength }) => {
   const { theme } = useTheme();
   const pulseAnim = useRef(new Animated.Value(0)).current;
-  const [signalBars, setSignalBars] = useState(1);
-  const [distance, setDistance] = useState(100); // meters
+  const pulseInterval = useRef(null);
 
   useEffect(() => {
     if (isActive) {
-      // Pulse animation
-      Animated.loop(
+      const duration = matchingState === 'approaching' ? 1000 : 2000;
+
+      const startPulse = () => {
+        pulseAnim.setValue(0);
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: 2000,
+          duration: duration,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
-        })
-      ).start();
+        }).start();
+      };
 
-      // Random walk for signal/distance simulation
-      const interval = setInterval(() => {
-        setSignalBars(prev => {
-          const delta = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
-          return Math.max(1, Math.min(5, prev + delta));
-        });
-        setDistance(prev => {
-          const delta = Math.floor(Math.random() * 5) - 2; // -2 to 2
-          return Math.max(1, Math.min(100, prev + delta));
-        });
-      }, 1500);
+      startPulse();
+      pulseInterval.current = setInterval(startPulse, duration);
 
       return () => {
-        pulseAnim.setValue(0);
-        clearInterval(interval);
+        if (pulseInterval.current) clearInterval(pulseInterval.current);
       };
     }
-  }, [isActive]);
+  }, [isActive, matchingState, pulseAnim]);
+
+  const signalBars = Math.round(signalStrength * 5);
+  const distance = Math.round((1 - signalStrength) * 100);
 
   const styles = StyleSheet.create({
     container: {
@@ -80,8 +74,38 @@ const Radar = ({ isActive }) => {
       fontFamily: theme.fontFamily,
       color: theme.text,
       textAlign: 'center',
+    },
+    stateBadge: {
+        backgroundColor: theme.secondary,
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 20,
+        marginTop: 10,
+    },
+    stateText: {
+        color: theme.text,
+        fontSize: 12,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
     }
   });
+
+  const getStatusText = () => {
+    switch (matchingState) {
+      case 'searching': return 'Searching for matches...';
+      case 'approaching': return 'Signal detected! Approaching...';
+      case 'match_found': return 'Match confirmed!';
+      default: return 'Initializing...';
+    }
+  };
+
+  const SignalIcon = () => {
+    if (signalBars <= 1) return <SignalLow color={theme.text} size={48} />;
+    if (signalBars <= 3) return <SignalMedium color={theme.text} size={48} />;
+    if (signalBars <= 4) return <SignalHigh color={theme.text} size={48} />;
+    return <Signal color={theme.text} size={48} />;
+  };
 
   if (theme.lcd) {
     return (
@@ -97,8 +121,10 @@ const Radar = ({ isActive }) => {
             />
           ))}
         </View>
-        <Text style={styles.statusText}>Paging nearby...</Text>
-        <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>Signal: {signalBars}/5</Text>
+        <Text style={styles.statusText}>{getStatusText()}</Text>
+        <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>
+            {matchingState === 'searching' ? 'SCANNING...' : `STRENGTH: ${Math.round(signalStrength * 100)}%`}
+        </Text>
       </View>
     );
   }
@@ -106,10 +132,14 @@ const Radar = ({ isActive }) => {
   return (
     <View style={styles.container}>
       <Animated.View style={styles.pulse} />
-      <Animated.View style={[styles.pulse, { delay: 1000 }]} />
-      <Radio color={theme.text} size={48} />
-      <Text style={styles.statusText}>Searching for matches...</Text>
-      <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>{distance}m away</Text>
+      <SignalIcon />
+      <View style={styles.stateBadge}>
+        <Text style={styles.stateText}>{matchingState}</Text>
+      </View>
+      <Text style={styles.statusText}>{getStatusText()}</Text>
+      <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>
+          {distance}m away
+      </Text>
     </View>
   );
 };
