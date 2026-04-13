@@ -3,7 +3,7 @@ import { StyleSheet, View, Animated, Easing, Text } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { Radio } from 'lucide-react-native';
 
-const Radar = ({ isActive }) => {
+const Radar = ({ isActive, matchingState }) => {
   const { theme } = useTheme();
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const [signalBars, setSignalBars] = useState(1);
@@ -11,11 +11,16 @@ const Radar = ({ isActive }) => {
 
   useEffect(() => {
     if (isActive) {
+      const pulseDuration =
+        matchingState === 'scanning' ? 3000 :
+        matchingState === 'pinging' ? 1500 :
+        matchingState === 'matching' ? 800 : 2000;
+
       // Pulse animation
       Animated.loop(
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: 2000,
+          duration: pulseDuration,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         })
@@ -38,7 +43,7 @@ const Radar = ({ isActive }) => {
         clearInterval(interval);
       };
     }
-  }, [isActive]);
+  }, [isActive, matchingState]);
 
   const styles = StyleSheet.create({
     container: {
@@ -83,6 +88,15 @@ const Radar = ({ isActive }) => {
     }
   });
 
+  const getStatusText = () => {
+    switch (matchingState) {
+      case 'scanning': return theme.lcd ? 'Scanning frequency...' : 'Scanning nearby...';
+      case 'pinging': return theme.lcd ? 'Sending pings...' : 'Pinging potential matches...';
+      case 'matching': return theme.lcd ? 'Handshaking...' : 'Establishing connection...';
+      default: return theme.lcd ? 'Paging nearby...' : 'Searching for matches...';
+    }
+  };
+
   if (theme.lcd) {
     return (
       <View style={styles.container}>
@@ -97,7 +111,7 @@ const Radar = ({ isActive }) => {
             />
           ))}
         </View>
-        <Text style={styles.statusText}>Paging nearby...</Text>
+        <Text style={styles.statusText}>{getStatusText()}</Text>
         <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>Signal: {signalBars}/5</Text>
       </View>
     );
@@ -108,7 +122,7 @@ const Radar = ({ isActive }) => {
       <Animated.View style={styles.pulse} />
       <Animated.View style={[styles.pulse, { delay: 1000 }]} />
       <Radio color={theme.text} size={48} />
-      <Text style={styles.statusText}>Searching for matches...</Text>
+      <Text style={styles.statusText}>{getStatusText()}</Text>
       <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>{distance}m away</Text>
     </View>
   );

@@ -10,18 +10,23 @@ describe('useProximity', () => {
     expect(result.current.matchingState).toBe('none');
   });
 
-  it('should transition to "finding" when active', async () => {
+  it('should transition through scanning, pinging, and matching when active', async () => {
     const { result } = await renderHook(() => useProximity(true));
-    expect(result.current.matchingState).toBe('finding');
-  });
-
-  it('should transition to "match_found" after delay', async () => {
-    const { result } = await renderHook(() => useProximity(true));
+    expect(result.current.matchingState).toBe('scanning');
 
     await act(async () => {
-      jest.advanceTimersByTime(11000);
+      jest.advanceTimersByTime(5000);
     });
+    expect(result.current.matchingState).toBe('pinging');
 
+    await act(async () => {
+      jest.advanceTimersByTime(4000);
+    });
+    expect(result.current.matchingState).toBe('matching');
+
+    await act(async () => {
+      jest.advanceTimersByTime(4000);
+    });
     expect(result.current.matchingState).toBe('match_found');
   });
 
@@ -29,7 +34,7 @@ describe('useProximity', () => {
     const { result } = await renderHook(() => useProximity(true));
 
     await act(async () => {
-      jest.advanceTimersByTime(11000);
+      jest.advanceTimersByTime(15000);
     });
 
     await act(async () => {
@@ -48,7 +53,7 @@ describe('useProximity', () => {
     });
 
     await act(async () => {
-      jest.advanceTimersByTime(11000);
+      jest.advanceTimersByTime(15000);
     });
 
     await act(async () => {
