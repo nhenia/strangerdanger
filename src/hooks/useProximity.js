@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
  * In a real-world scenario, this would interface with Bluetooth LE or Geolocation APIs.
  */
 export const useProximity = (isActive) => {
-  const [matchingState, setMatchingState] = useState('none'); // none, finding, match_found, bridge
+  const [matchingState, setMatchingState] = useState('none'); // none, searching, far, near, very_close, match_found, bridge
   const [myAnchor, setMyAnchor] = useState('');
   const [theirAnchor, setTheirAnchor] = useState('');
   const [matchData, setMatchData] = useState(null);
@@ -14,14 +14,25 @@ export const useProximity = (isActive) => {
     let timer;
     if (isActive) {
       if (matchingState === 'none') {
-        setMatchingState('finding');
+        setMatchingState('searching');
       }
 
-      if (matchingState === 'finding') {
-        // Simulate finding a match after a random delay
+      if (matchingState === 'searching') {
+        timer = setTimeout(() => {
+          setMatchingState('far');
+        }, 3000 + Math.random() * 2000);
+      } else if (matchingState === 'far') {
+        timer = setTimeout(() => {
+          setMatchingState('near');
+        }, 3000 + Math.random() * 2000);
+      } else if (matchingState === 'near') {
+        timer = setTimeout(() => {
+          setMatchingState('very_close');
+        }, 3000 + Math.random() * 2000);
+      } else if (matchingState === 'very_close') {
         timer = setTimeout(() => {
           setMatchingState('match_found');
-        }, 7000 + Math.random() * 3000); // 7-10 seconds
+        }, 2000 + Math.random() * 2000);
       }
     } else {
       setMatchingState('none');

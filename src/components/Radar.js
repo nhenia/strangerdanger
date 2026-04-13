@@ -3,42 +3,66 @@ import { StyleSheet, View, Animated, Easing, Text } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { Radio } from 'lucide-react-native';
 
-const Radar = ({ isActive }) => {
+const Radar = ({ isActive, matchingState }) => {
   const { theme } = useTheme();
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const [signalBars, setSignalBars] = useState(1);
   const [distance, setDistance] = useState(100); // meters
 
+  const getStatusInfo = () => {
+    switch (matchingState) {
+      case 'searching':
+        return { text: 'Searching...', color: theme.accent, pulseDuration: 3000, bars: 1, distRange: [80, 100] };
+      case 'far':
+        return { text: 'Signal detected', color: theme.accent, pulseDuration: 2000, bars: 2, distRange: [50, 80] };
+      case 'near':
+        return { text: 'Closing in...', color: theme.accent, pulseDuration: 1500, bars: 3, distRange: [20, 50] };
+      case 'very_close':
+        return { text: 'Immediate vicinity!', color: theme.accent, pulseDuration: 800, bars: 5, distRange: [5, 20] };
+      default:
+        return { text: 'Paging nearby...', color: theme.accent, pulseDuration: 2000, bars: 1, distRange: [100, 100] };
+    }
+  };
+
+  const statusInfo = getStatusInfo();
+
   useEffect(() => {
     if (isActive) {
       // Pulse animation
-      Animated.loop(
+      const animation = Animated.loop(
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: 2000,
+          duration: statusInfo.pulseDuration,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         })
-      ).start();
+      );
+      animation.start();
 
-      // Random walk for signal/distance simulation
+      // Update signal and distance based on state
       const interval = setInterval(() => {
         setSignalBars(prev => {
-          const delta = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
-          return Math.max(1, Math.min(5, prev + delta));
+          const target = statusInfo.bars;
+          if (prev < target) return prev + 1;
+          if (prev > target) return prev - 1;
+          return prev;
         });
         setDistance(prev => {
-          const delta = Math.floor(Math.random() * 5) - 2; // -2 to 2
-          return Math.max(1, Math.min(100, prev + delta));
+          const [min, max] = statusInfo.distRange;
+          if (prev > max) return prev - Math.min(10, prev - max);
+          if (prev < min) return prev + Math.min(10, min - prev);
+          const delta = Math.floor(Math.random() * 3) - 1; // -1 to 1
+          return Math.max(min, Math.min(max, prev + delta));
         });
-      }, 1500);
+      }, 1000);
 
       return () => {
+        animation.stop();
         pulseAnim.setValue(0);
         clearInterval(interval);
       };
     }
-  }, [isActive]);
+  }, [isActive, matchingState, statusInfo.pulseDuration]);
 
   const styles = StyleSheet.create({
     container: {
@@ -97,7 +121,7 @@ const Radar = ({ isActive }) => {
             />
           ))}
         </View>
-        <Text style={styles.statusText}>Paging nearby...</Text>
+        <Text style={styles.statusText}>{statusInfo.text}</Text>
         <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>Signal: {signalBars}/5</Text>
       </View>
     );
@@ -106,9 +130,8 @@ const Radar = ({ isActive }) => {
   return (
     <View style={styles.container}>
       <Animated.View style={styles.pulse} />
-      <Animated.View style={[styles.pulse, { delay: 1000 }]} />
       <Radio color={theme.text} size={48} />
-      <Text style={styles.statusText}>Searching for matches...</Text>
+      <Text style={styles.statusText}>{statusInfo.text}</Text>
       <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>{distance}m away</Text>
     </View>
   );
