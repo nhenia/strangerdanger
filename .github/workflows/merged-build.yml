@@ -144,9 +144,10 @@ jobs:
           K_ALIAS="${KEY_ALIAS:-$K_ALIAS}"
           [ -z "$K_ALIAS" ] && K_ALIAS="android"
 
-          # Use yes | to bypass interactive prompts
-          yes | bubblewrap update
-          yes | bubblewrap build \
+          # Update and build using proper flags to avoid interactive prompts
+          bubblewrap update --yes --skipVersionUpgrade || bubblewrap update --yes
+
+          bubblewrap build --yes \
             --signingKeyPath=keystore.p12 \
             --signingKeyAlias="$K_ALIAS" \
             --signingKeyPassword="${BUBBLEWRAP_KEY_PASSWORD:-android}" \
