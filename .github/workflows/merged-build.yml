@@ -11,7 +11,7 @@ env:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-and-release:
@@ -66,9 +66,12 @@ jobs:
 
       - name: Update manifest versions
         run: |
-          # Update TWA manifest and package.json with the calculated version
+          # Update TWA manifest, package.json and app.json with the calculated version
           jq ".appVersionName = \"${VERSION_NAME}\" | .appVersionCode = ${BUILD_NUMBER}" twa-manifest.json > temp.json && mv temp.json twa-manifest.json
           jq ".version = \"${VERSION_NAME}\"" package.json > temp.json && mv temp.json package.json
+          if [ -f "app.json" ]; then
+            jq ".expo.version = \"${VERSION_NAME}\" | .expo.android.versionCode = ${BUILD_NUMBER} | .expo.ios.buildNumber = \"${BUILD_NUMBER}\"" app.json > temp.json && mv temp.json app.json
+          fi
 
       - name: Export PWA
         run: npx expo export --platform web

@@ -10,6 +10,8 @@
   "navigationDividerColor": "#000000",
   "navigationDividerColorDark": "#000000",
   "backgroundColor": "#ffffff",
+  "iconUrl": "https://hereliesaz.github.io/strangerdanger/icon.png",
+  "maskableIconUrl": "https://hereliesaz.github.io/strangerdanger/icon.png",
   "enableNotifications": false,
   "startUrl": "/strangerdanger/",
   "webManifestUrl": "https://hereliesaz.github.io/strangerdanger/manifest.json",
