@@ -17,6 +17,7 @@
   "webManifestUrl": "https://hereliesaz.github.io/strangerdanger/manifest.json",
   "useBrowserHistory": true,
   "splashScreenFadeDuration": 300,
+  "splashScreenFadeOutDuration": 300,
   "appVersionName": "1.0.0.1",
   "appVersionCode": 1,
   "signingKey": {
