@@ -73,10 +73,12 @@ jobs:
       - name: Export PWA
         run: npx expo export --platform web
 
-      - name: Generate Keystore from Secrets
+      - name: Generate Keystore
+        id: keystore
         env:
           KEYSTORE_PRIVATE: ${{ secrets.KEYSTORE_PRIVATE }}
           KEYSTORE_CHAIN: ${{ secrets.KEYSTORE_CHAIN }}
+          KEYSTORE_RAW: ${{ secrets.KEYSTORE_RAW }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
@@ -85,11 +87,25 @@ jobs:
             echo "$KEYSTORE_PRIVATE" > private_key.pem
             echo "$KEYSTORE_CHAIN" > certificate_chain.crt
             openssl pkcs12 -export -in certificate_chain.crt -inkey private_key.pem \
-              -name "$KEY_ALIAS" -out keystore.p12 -password pass:"$KEYSTORE_PASSWORD"
+              -name "${KEY_ALIAS:-android}" -out keystore.p12 -password pass:"${KEYSTORE_PASSWORD:-android}"
             rm private_key.pem certificate_chain.crt
             echo "KEYSTORE_TYPE=dynamic" >> $GITHUB_ENV
-          else
+          elif [ -n "$KEYSTORE_RAW" ]; then
+            echo "Decoding and converting JKS to PKCS12..."
+            printf "%s" "$KEYSTORE_RAW" | base64 --decode > android.jks
+            keytool -importkeystore -srckeystore android.jks -srcstoretype JKS \
+              -destkeystore keystore.p12 -deststoretype PKCS12 \
+              -srcstorepass "${KEYSTORE_PASSWORD:-android}" -deststorepass "${KEYSTORE_PASSWORD:-android}" \
+              -srcalias "${KEY_ALIAS:-android}" -destalias "${KEY_ALIAS:-android}" -noprompt
+            rm android.jks
             echo "KEYSTORE_TYPE=raw" >> $GITHUB_ENV
+          else
+            echo "No keystore secrets found. Generating default debug keystore..."
+            keytool -genkey -v -keystore keystore.p12 -storetype PKCS12 -storepass android -alias android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+            echo "KEY_ALIAS=android" >> $GITHUB_ENV
+            echo "KEYSTORE_PASSWORD=android" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=android" >> $GITHUB_ENV
+            echo "KEYSTORE_TYPE=debug" >> $GITHUB_ENV
           fi
 
       - name: Install Bubblewrap
@@ -103,33 +119,24 @@ jobs:
       - name: Build TWA
         id: build-twa
         env:
-          KEYSTORE_RAW: ${{ secrets.KEYSTORE_RAW }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           set +e
-          if [ "$KEYSTORE_TYPE" = "raw" ] && [ -n "$KEYSTORE_RAW" ]; then
-            echo "Decoding and converting JKS to PKCS12..."
-            printf "%s" "$KEYSTORE_RAW" | base64 --decode > android.jks
-            keytool -importkeystore -srckeystore android.jks -srcstoretype JKS \
-              -destkeystore keystore.p12 -deststoretype PKCS12 \
-              -srcstorepass "$KEYSTORE_PASSWORD" -deststorepass "$KEYSTORE_PASSWORD" \
-              -srcalias "$KEY_ALIAS" -destalias "$KEY_ALIAS" -noprompt
-            rm android.jks
-          fi
+          # Use secrets if available, otherwise fallback to env (debug defaults)
+          K_PASS="${KEYSTORE_PASSWORD:-$KEYSTORE_PASSWORD}"
+          [ -z "$K_PASS" ] && K_PASS="android"
+          K_ALIAS="${KEY_ALIAS:-$KEY_ALIAS}"
+          [ -z "$K_ALIAS" ] && K_ALIAS="android"
 
-          # Ensure keystore exists or skip signing if not provided
-          if [ ! -f "keystore.p12" ]; then
-            echo "No keystore found, building unsigned..."
-            bubblewrap build --yes --skipSigning > build.log 2>&1
-          else
-            bubblewrap update --yes --skipVersionUpgrade || bubblewrap update --yes
-            bubblewrap build --yes \
-              --signingKeyPath=keystore.p12 \
-              --signingKeyAlias=$KEY_ALIAS > build.log 2>&1
-          fi
+          bubblewrap update --yes --skipVersionUpgrade || bubblewrap update --yes
+          bubblewrap build --yes \
+            --signingKeyPath=keystore.p12 \
+            --signingKeyAlias="$K_ALIAS" \
+            --signingKeyPassword="${BUBBLEWRAP_KEY_PASSWORD:-android}" \
+            --signingKeyStorePassword="${BUBBLEWRAP_KEYSTORE_PASSWORD:-android}" > build.log 2>&1
 
           EXIT_CODE=$?
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
