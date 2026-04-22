@@ -50,6 +50,7 @@ jobs:
           BUILD_NUMBER=$(git rev-list --count HEAD)
           MAJOR=$(grep 'versionMajor=' version.properties | cut -d'=' -f2 | tr -d '\r ')
           MINOR=$(grep 'versionMinor=' version.properties | cut -d'=' -f2 | tr -d '\r ')
+          # Find the commit where versionMinor was last changed
           MINOR_COMMIT=$(git blame -L '/versionMinor=/',+1 version.properties | awk '{print $1}' | tr -d '^')
           if [ -n "$MINOR_COMMIT" ]; then
             PATCH=$(git rev-list --count $MINOR_COMMIT..HEAD)
@@ -110,7 +111,7 @@ jobs:
           mkdir -p .server/strangerdanger
           cp -r dist/* .server/strangerdanger/
 
-          # Find the manifest in dist and ensure it's at the expected path
+          # Ensure manifest.json is at the expected path
           MANIFEST_PATH=$(find dist -name "*.json" -not -name "twa-manifest.json" | head -n 1)
           if [ -n "$MANIFEST_PATH" ]; then
             cp "$MANIFEST_PATH" .server/strangerdanger/manifest.json
@@ -128,13 +129,14 @@ jobs:
           K_ALIAS="${KEY_ALIAS:-$K_ALIAS}"
           [ -z "$K_ALIAS" ] && K_ALIAS="android"
 
-          # FORCE INIT TO BYPASS INTERACTIVE CHECKS
-          # We use init with all parameters to create a fresh, clean project state
-          # which includes the checksum file that build/update look for.
-          bubblewrap init --manifest=http://localhost:8080/strangerdanger/manifest.json --directory=. --metaData=false --anchorTagSelectMode=false --yes
+          # 1. Answer 'y' to the regeneration prompt, but skip version prompts with flags
+          echo "Syncing TWA project..."
+          echo "y" | bubblewrap update --yes --skipVersionUpgrade
 
-          # Build the TWA
-          bubblewrap build --yes \
+          # 2. Build the TWA. Since we just updated, it should be silent.
+          # If it STILL prompts, printf "y\n\n" handles it safely.
+          echo "Building TWA..."
+          printf "y\n\n" | bubblewrap build --yes \
             --signingKeyPath=keystore.p12 \
             --signingKeyAlias="$K_ALIAS" \
             --signingKeyPassword="${BUBBLEWRAP_KEY_PASSWORD:-$K_PASS}" \
