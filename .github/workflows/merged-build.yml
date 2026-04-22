@@ -130,9 +130,8 @@ jobs:
           K_ALIAS="${KEY_ALIAS:-$K_ALIAS}"
           [ -z "$K_ALIAS" ] && K_ALIAS="android"
 
-          # Run build directly. Bubblewrap will prompt to initialize if it's the first run.
-          # We use "y" to confirm regeneration/initialization.
-          echo "y" | bubblewrap build --yes \
+          # Use printf to handle potential multiple prompts gracefully
+          printf "y\ny\ny\n" | bubblewrap build --yes \
             --signingKeyPath=keystore.p12 \
             --signingKeyAlias="$K_ALIAS" \
             --signingKeyPassword="${BUBBLEWRAP_KEY_PASSWORD:-$K_PASS}" \
