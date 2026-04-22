@@ -87,10 +87,11 @@ const MainApp = () => {
     <SafeAreaView style={{ flex: 1, backgroundColor: isIdle ? '#000' : theme.background }} {...panResponder.panHandlers}>
       <StatusBar barStyle={isIdle ? 'light-content' : (theme.isDark ? 'light-content' : 'dark-content')} hidden={isIdle} />
 
-      {!isIdle && <AnimatedBackground />}
+      {/* We keep the UI mounted to preserve state, but hide it visually or cover it with absolute view */}
+      <View style={{ flex: 1, opacity: isIdle ? 0 : 1 }}>
+        <AnimatedBackground />
 
-      {!isIdle && (
-        matchingState === 'bridge' ? (
+        {matchingState === 'bridge' ? (
           <Bridge
             myAnchor={myAnchor}
             theirAnchor={theirAnchor}
@@ -101,11 +102,11 @@ const MainApp = () => {
           <MatchFound onAccept={handleMatchAccept} />
         ) : (
           <HomeScreen isActive={isActive} onToggle={handleToggleActive} mood={mood} onMoodChange={handleMoodChange} />
-        )
-      )}
+        )}
+      </View>
 
       {isIdle && (
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#000', zIndex: 9000 }]} />
+        <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { backgroundColor: '#000', zIndex: 9000 }]} />
       )}
 
       <MoodRing mood={mood} />
