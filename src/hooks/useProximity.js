@@ -14,14 +14,25 @@ export const useProximity = (isActive) => {
     let timer;
     if (isActive) {
       if (matchingState === 'none') {
-        setMatchingState('finding');
+        setMatchingState('broadcasting');
       }
 
-      if (matchingState === 'finding') {
-        // Simulate finding a match after a random delay
+      if (matchingState === 'broadcasting') {
+        timer = setTimeout(() => {
+          setMatchingState('scanning');
+        }, 2000 + Math.random() * 1000);
+      }
+
+      if (matchingState === 'scanning') {
+        timer = setTimeout(() => {
+          setMatchingState('pinpointing');
+        }, 3000 + Math.random() * 2000);
+      }
+
+      if (matchingState === 'pinpointing') {
         timer = setTimeout(() => {
           setMatchingState('match_found');
-        }, 7000 + Math.random() * 3000); // 7-10 seconds
+        }, 2000 + Math.random() * 1000);
       }
     } else {
       setMatchingState('none');
