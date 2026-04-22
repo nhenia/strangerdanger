@@ -1,0 +1,177 @@
+name: Merged TWA Build & Release
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-release:
+    name: Android TWA Build & Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Calculate version
+        id: version
+        run: |
+          BUILD_NUMBER=$(git rev-list --count HEAD)
+          MAJOR=$(grep 'versionMajor=' version.properties | cut -d'=' -f2 | tr -d '\r ')
+          MINOR=$(grep 'versionMinor=' version.properties | cut -d'=' -f2 | tr -d '\r ')
+          # Find the commit where versionMinor was last changed
+          MINOR_COMMIT=$(git blame -L '/versionMinor=/',+1 version.properties | awk '{print $1}' | tr -d '^')
+          if [ -n "$MINOR_COMMIT" ]; then
+            PATCH=$(git rev-list --count $MINOR_COMMIT..HEAD)
+          else
+            PATCH=$(grep 'versionPatch=' version.properties | cut -d'=' -f2 | tr -d '\r ')
+          fi
+          VERSION_NAME="${MAJOR}.${MINOR}.${PATCH}.${BUILD_NUMBER}"
+          echo "VERSION_NAME=${VERSION_NAME}" >> $GITHUB_ENV
+          echo "BUILD_NUMBER=${BUILD_NUMBER}" >> $GITHUB_ENV
+          echo "MAJOR=${MAJOR}" >> $GITHUB_ENV
+          echo "MINOR=${MINOR}" >> $GITHUB_ENV
+          echo "Calculated Version: ${VERSION_NAME}"
+
+      - name: Update manifest versions
+        run: |
+          # Update TWA manifest and package.json with the calculated version
+          jq ".appVersionName = \"${VERSION_NAME}\" | .appVersionCode = ${BUILD_NUMBER}" twa-manifest.json > temp.json && mv temp.json twa-manifest.json
+          jq ".version = \"${VERSION_NAME}\"" package.json > temp.json && mv temp.json package.json
+
+      - name: Export PWA
+        run: npx expo export --platform web
+
+      - name: Generate Keystore from Secrets
+        env:
+          KEYSTORE_PRIVATE: ${{ secrets.KEYSTORE_PRIVATE }}
+          KEYSTORE_CHAIN: ${{ secrets.KEYSTORE_CHAIN }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -n "$KEYSTORE_PRIVATE" ] && [ -n "$KEYSTORE_CHAIN" ]; then
+            echo "Generating PKCS12 keystore from PEM/CRT secrets..."
+            echo "$KEYSTORE_PRIVATE" > private_key.pem
+            echo "$KEYSTORE_CHAIN" > certificate_chain.crt
+            openssl pkcs12 -export -in certificate_chain.crt -inkey private_key.pem \
+              -name "$KEY_ALIAS" -out keystore.p12 -password pass:"$KEYSTORE_PASSWORD"
+            rm private_key.pem certificate_chain.crt
+            echo "KEYSTORE_TYPE=dynamic" >> $GITHUB_ENV
+          else
+            echo "KEYSTORE_TYPE=raw" >> $GITHUB_ENV
+          fi
+
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
+
+      - name: Initialize Bubblewrap config
+        run: |
+          mkdir -p ~/.bubblewrap
+          echo "{\"jdkPath\":\"$JAVA_HOME\",\"androidSdkPath\":\"$ANDROID_SDK_ROOT\"}" > ~/.bubblewrap/config.json
+
+      - name: Build TWA
+        id: build-twa
+        env:
+          KEYSTORE_RAW: ${{ secrets.KEYSTORE_RAW }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          set +e
+          if [ "$KEYSTORE_TYPE" = "raw" ] && [ -n "$KEYSTORE_RAW" ]; then
+            echo "Decoding and converting JKS to PKCS12..."
+            printf "%s" "$KEYSTORE_RAW" | base64 --decode > android.jks
+            keytool -importkeystore -srckeystore android.jks -srcstoretype JKS \
+              -destkeystore keystore.p12 -deststoretype PKCS12 \
+              -srcstorepass "$KEYSTORE_PASSWORD" -deststorepass "$KEYSTORE_PASSWORD" \
+              -srcalias "$KEY_ALIAS" -destalias "$KEY_ALIAS" -noprompt
+            rm android.jks
+          fi
+
+          # Ensure keystore exists or skip signing if not provided
+          if [ ! -f "keystore.p12" ]; then
+            echo "No keystore found, building unsigned..."
+            bubblewrap build --yes --skipSigning > build.log 2>&1
+          else
+            bubblewrap update --yes --skipVersionUpgrade || bubblewrap update --yes
+            bubblewrap build --yes \
+              --signingKeyPath=keystore.p12 \
+              --signingKeyAlias=$KEY_ALIAS > build.log 2>&1
+          fi
+
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          cat build.log
+          exit $EXIT_CODE
+
+      - name: Handle Failure
+        if: failure() && github.event_name == 'push'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LOG_TAIL=$(tail -c 4000 build.log | sed 's/`/\`/g')
+          BODY="Build failed on branch \`${GITHUB_REF#refs/heads/}\`. ### Build Log (last 4000 chars): \`\`\` ${LOG_TAIL} \`\`\`"
+          gh issue create --title "Build Failure: ${GITHUB_SHA::7}" --body "$BODY" --label "bug" --assignee "HereLiesAz"
+
+      - name: Create Release
+        if: success() && github.event_name == 'push'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="latest-release-v${MAJOR}.${MINOR}"
+          APK_NAME="strangerdanger-${VERSION_NAME}-release.apk"
+          if [ -f "app-release-signed.apk" ]; then
+            mv app-release-signed.apk "$APK_NAME"
+          elif [ -f "app-release-unsigned.apk" ]; then
+            mv app-release-unsigned.apk "$APK_NAME"
+          else
+            # Fallback if bubblewrap output name differs
+            mv *.apk "$APK_NAME" || echo "No APK found"
+          fi
+
+          if [ -f "$APK_NAME" ]; then
+            # Create or update the release
+            gh release create "$TAG_NAME" "$APK_NAME" \
+              --title "v${MAJOR}.${MINOR} Build ${BUILD_NUMBER}" \
+              --notes "Automated TWA build for version ${VERSION_NAME}" \
+              --target main || \
+            gh release upload "$TAG_NAME" "$APK_NAME" --clobber
+          fi
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-android-${{ env.VERSION_NAME }}
+          path: strangerdanger-*-release.apk

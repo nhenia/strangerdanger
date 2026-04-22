@@ -1,0 +1,34 @@
+{
+  "packageId": "com.hereliesaz.strangerdanger",
+  "host": "hereliesaz.github.io",
+  "name": "Stranger Danger",
+  "launcherName": "StrangerDanger",
+  "displayMode": "standalone",
+  "themeColor": "#ffffff",
+  "navigationColor": "#ffffff",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#ffffff",
+  "enableNotifications": false,
+  "startUrl": "/strangerdanger/",
+  "webManifestUrl": "https://hereliesaz.github.io/strangerdanger/manifest.json",
+  "useBrowserHistory": true,
+  "splashScreenFadeDuration": 300,
+  "appVersionName": "1.0.0.1",
+  "appVersionCode": 1,
+  "signingKey": {
+    "path": "./keystore.p12",
+    "alias": "android"
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isDirectInstall": false,
+  "fallbackType": "customtabs",
+  "orientation": "any",
+  "shortcuts": [],
+  "shareTarget": {
+    "action": "",
+    "params": {}
+  }
+}
