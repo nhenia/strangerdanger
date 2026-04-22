@@ -64,6 +64,8 @@ const MainApp = () => {
     myAnchor,
     theirAnchor,
     matchData,
+    distance,
+    signalBars,
     acceptMatch,
     reset
   } = useProximity(isActive);

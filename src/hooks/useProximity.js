@@ -9,46 +9,66 @@ export const useProximity = (isActive) => {
   const [myAnchor, setMyAnchor] = useState('');
   const [theirAnchor, setTheirAnchor] = useState('');
   const [matchData, setMatchData] = useState(null);
+  const [distance, setDistance] = useState(100);
+  const [signalBars, setSignalBars] = useState(1);
 
   useEffect(() => {
     let timer;
+    let interval;
+
     if (isActive) {
       if (matchingState === 'none') {
-        setMatchingState('broadcasting');
+        setMatchingState('finding');
+        setDistance(100);
+        setSignalBars(1);
       }
 
-      if (matchingState === 'broadcasting') {
+      if (matchingState === 'finding') {
+        // Simulate finding a match after a random delay
         timer = setTimeout(() => {
-          setMatchingState('scanning');
-        }, 2000 + Math.random() * 1000);
-      }
-
-      if (matchingState === 'scanning') {
-        timer = setTimeout(() => {
-          setMatchingState('pinpointing');
-        }, 3000 + Math.random() * 2000);
-      }
-
-      if (matchingState === 'pinpointing') {
-        timer = setTimeout(() => {
+          if (interval) clearInterval(interval);
           setMatchingState('match_found');
-        }, 2000 + Math.random() * 1000);
+          setDistance(0);
+          setSignalBars(5);
+        }, 7000 + Math.random() * 3000); // 7-10 seconds
+
+        // Random walk for signal/distance simulation while finding
+        interval = setInterval(() => {
+          setSignalBars(prev => {
+            const delta = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
+            return Math.max(1, Math.min(5, prev + delta));
+          });
+          setDistance(prev => {
+            // Gradually decrease distance
+            const decrease = Math.floor(Math.random() * 10) + 5; // 5-15 meters per interval
+            return Math.max(5, prev - decrease);
+          });
+        }, 1500);
       }
     } else {
       setMatchingState('none');
       setMyAnchor('');
       setTheirAnchor('');
       setMatchData(null);
+      setDistance(100);
+      setSignalBars(1);
     }
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, [isActive, matchingState]);
 
   const acceptMatch = useCallback((anchor, generateHandshakeCallback) => {
     setMyAnchor(anchor);
 
     // Simulated anchor for the other person
-    const sampleAnchors = ['Blue Book', 'Red Cap', 'Green Scarf', 'Corner Table', 'Laptop stickers', 'Yellow bag'];
+    const sampleAnchors = [
+      'Blue Book', 'Red Cap', 'Green Scarf', 'Corner Table',
+      'Laptop stickers', 'Yellow bag', 'Silver Watch', 'Denim Jacket',
+      'White Headphones', 'Coffee cup', 'Black umbrella', 'Patterned tote'
+    ];
     const selectedTheirAnchor = sampleAnchors[Math.floor(Math.random() * sampleAnchors.length)];
     setTheirAnchor(selectedTheirAnchor);
 
@@ -72,6 +92,8 @@ export const useProximity = (isActive) => {
     myAnchor,
     theirAnchor,
     matchData,
+    distance,
+    signalBars,
     acceptMatch,
     reset
   };

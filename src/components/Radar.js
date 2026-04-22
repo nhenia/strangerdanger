@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StyleSheet, View, Animated, Easing, Text } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { Radio } from 'lucide-react-native';
@@ -6,8 +6,6 @@ import { Radio } from 'lucide-react-native';
 const Radar = ({ isActive, matchingState }) => {
   const { theme } = useTheme();
   const pulseAnim = useRef(new Animated.Value(0)).current;
-  const [signalBars, setSignalBars] = useState(1);
-  const [distance, setDistance] = useState(100); // meters
 
   useEffect(() => {
     if (isActive) {
@@ -46,7 +44,6 @@ const Radar = ({ isActive, matchingState }) => {
       return () => {
         animation.stop();
         pulseAnim.setValue(0);
-        clearInterval(interval);
       };
     }
   }, [isActive, matchingState]);
