@@ -14,25 +14,25 @@ export const useProximity = (isActive) => {
     let timer;
     if (isActive) {
       if (matchingState === 'none') {
-        setMatchingState('scanning');
+        setMatchingState('broadcasting');
+      }
+
+      if (matchingState === 'broadcasting') {
+        timer = setTimeout(() => {
+          setMatchingState('scanning');
+        }, 2000 + Math.random() * 1000);
       }
 
       if (matchingState === 'scanning') {
         timer = setTimeout(() => {
-          setMatchingState('pinging');
+          setMatchingState('pinpointing');
         }, 3000 + Math.random() * 2000);
       }
 
-      if (matchingState === 'pinging') {
-        timer = setTimeout(() => {
-          setMatchingState('matching');
-        }, 2000 + Math.random() * 2000);
-      }
-
-      if (matchingState === 'matching') {
+      if (matchingState === 'pinpointing') {
         timer = setTimeout(() => {
           setMatchingState('match_found');
-        }, 2000 + Math.random() * 2000);
+        }, 2000 + Math.random() * 1000);
       }
     } else {
       setMatchingState('none');

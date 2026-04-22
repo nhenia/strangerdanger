@@ -17,28 +17,34 @@ const Radar = ({ isActive, matchingState }) => {
         matchingState === 'matching' ? 800 : 2000;
 
       // Pulse animation
-      Animated.loop(
+      const animation = Animated.loop(
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: pulseDuration,
+          duration: matchingState === 'pinpointing' ? 1000 : 2000,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         })
-      ).start();
+      );
+      animation.start();
 
       // Random walk for signal/distance simulation
       const interval = setInterval(() => {
         setSignalBars(prev => {
+          if (matchingState === 'broadcasting') return 1;
+          if (matchingState === 'pinpointing') return 4 + Math.floor(Math.random() * 2);
           const delta = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
           return Math.max(1, Math.min(5, prev + delta));
         });
         setDistance(prev => {
+          if (matchingState === 'broadcasting') return 100;
+          if (matchingState === 'pinpointing') return 5 + Math.floor(Math.random() * 5);
           const delta = Math.floor(Math.random() * 5) - 2; // -2 to 2
           return Math.max(1, Math.min(100, prev + delta));
         });
       }, 1500);
 
       return () => {
+        animation.stop();
         pulseAnim.setValue(0);
         clearInterval(interval);
       };
@@ -88,12 +94,16 @@ const Radar = ({ isActive, matchingState }) => {
     }
   });
 
-  const getStatusText = () => {
+  const getStatusMessage = () => {
     switch (matchingState) {
-      case 'scanning': return theme.lcd ? 'Scanning frequency...' : 'Scanning nearby...';
-      case 'pinging': return theme.lcd ? 'Sending pings...' : 'Pinging potential matches...';
-      case 'matching': return theme.lcd ? 'Handshaking...' : 'Establishing connection...';
-      default: return theme.lcd ? 'Paging nearby...' : 'Searching for matches...';
+      case 'broadcasting':
+        return theme.lcd ? 'Initializing pager...' : 'Broadcasting presence...';
+      case 'scanning':
+        return theme.lcd ? 'Paging nearby...' : 'Scanning for peers...';
+      case 'pinpointing':
+        return theme.lcd ? 'Signal locked...' : 'Pinpointing match...';
+      default:
+        return theme.lcd ? 'Paging nearby...' : 'Searching for matches...';
     }
   };
 
@@ -111,8 +121,10 @@ const Radar = ({ isActive, matchingState }) => {
             />
           ))}
         </View>
-        <Text style={styles.statusText}>{getStatusText()}</Text>
-        <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>Signal: {signalBars}/5</Text>
+        <Text style={styles.statusText}>{getStatusMessage()}</Text>
+        <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>
+          {matchingState === 'broadcasting' ? 'Ready' : `Signal: ${signalBars}/5`}
+        </Text>
       </View>
     );
   }
@@ -120,10 +132,12 @@ const Radar = ({ isActive, matchingState }) => {
   return (
     <View style={styles.container}>
       <Animated.View style={styles.pulse} />
-      <Animated.View style={[styles.pulse, { delay: 1000 }]} />
+      {!theme.lcd && matchingState !== 'pinpointing' && <Animated.View style={[styles.pulse, { delay: 1000 }]} />}
       <Radio color={theme.text} size={48} />
-      <Text style={styles.statusText}>{getStatusText()}</Text>
-      <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>{distance}m away</Text>
+      <Text style={styles.statusText}>{getStatusMessage()}</Text>
+      <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>
+        {matchingState === 'broadcasting' ? 'Establishing frequency' : `${distance}m away`}
+      </Text>
     </View>
   );
 };

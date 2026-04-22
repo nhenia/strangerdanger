@@ -56,6 +56,11 @@ const HomeScreen = ({ onToggle, isActive, matchingState }) => {
     onToggle(!isActive);
   };
 
+  const handleMoodSelect = (m) => {
+    Haptics.selectionAsync();
+    onMoodChange(m);
+  };
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -145,6 +150,25 @@ const HomeScreen = ({ onToggle, isActive, matchingState }) => {
       borderRadius: 5,
       borderWidth: 1,
       borderColor: theme.text,
+    },
+    moodPicker: {
+      marginTop: 20,
+    },
+    moodBtn: {
+      padding: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.secondary,
+      marginBottom: 10,
+      backgroundColor: 'transparent',
+    },
+    moodBtnActive: {
+      backgroundColor: theme.secondary,
+    },
+    moodText: {
+      color: theme.text,
+      fontFamily: theme.fontFamily,
+      textAlign: 'center',
     }
   });
 
@@ -174,6 +198,27 @@ const HomeScreen = ({ onToggle, isActive, matchingState }) => {
                   <Text style={{ color: theme.id === t.id ? theme.background : theme.text, fontSize: 12 }}>
                     {t.name}
                   </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.moodPicker}>
+              <Text style={styles.label}>Mood Signal</Text>
+              {[
+                { id: 'none', label: 'Off' },
+                { id: 'red', label: 'Do not talk to me (Red)' },
+                { id: 'yellow', label: 'Approach lightly (Yellow)' },
+                { id: 'green', label: 'Talk to me! (Green)' }
+              ].map((m) => (
+                <TouchableOpacity
+                  key={m.id}
+                  style={[
+                    styles.moodBtn,
+                    mood === m.id && styles.moodBtnActive
+                  ]}
+                  onPress={() => handleMoodSelect(m.id)}
+                >
+                  <Text style={styles.moodText}>{m.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>

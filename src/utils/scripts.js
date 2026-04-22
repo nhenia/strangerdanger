@@ -5,11 +5,14 @@ const scripts = {
     { call: "Pardon me, I'm drawn to your {myAnchor}.", response: "Appreciated. I see your {theirAnchor}." },
     { call: "The {myAnchor} is a great choice.", response: "Thank you, I was just admiring your {theirAnchor}." },
     { call: "Did you get that {myAnchor} nearby?", response: "I did! Matches well with your {theirAnchor}, doesn't it?" },
+    { call: "The {myAnchor} caught my eye.", response: "Good eye. I was looking at your {theirAnchor}." },
+    { call: "Lovely weather to be carrying a {myAnchor}.", response: "Agreed. Your {theirAnchor} is also quite fitting." },
   ],
   silent: [
     { call: "Respectful nod towards your {myAnchor}.", response: "Nodding back, acknowledging your {theirAnchor}." },
     { call: "Placing my {myAnchor} where you can see it.", response: "Adjusting my {theirAnchor} in response." },
-    { call: "A slight tip of the hat to your {myAnchor}.", response: "A subtle wave, noting your {theirAnchor}." },
+    { call: "A slight tip of the head toward your {myAnchor}.", response: "A mirroring gesture, noting your {theirAnchor}." },
+    { call: "Catching your eye while holding my {myAnchor}.", response: "Returning the gaze, pointing slightly at my {theirAnchor}." },
   ],
   activity: [
     { call: "Ready to use my {myAnchor}?", response: "Ready. My {theirAnchor} is set." },
