@@ -131,9 +131,18 @@ jobs:
           BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           set +e
-          # Serve the dist folder locally so Bubblewrap can "download" the icons during build
+          # Serve the dist folder locally so Bubblewrap can "download" icons/manifest
           mkdir -p .server/strangerdanger
           cp -r dist/* .server/strangerdanger/
+
+          # Expo 54 sometimes exports manifest as manifest.json or similar.
+          # Ensure it's where Bubblewrap expects it.
+          if [ ! -f ".server/strangerdanger/manifest.json" ]; then
+            echo "Creating fallback manifest.json..."
+            # Bubblewrap mainly needs icons and basic metadata to start the build
+            cp twa-manifest.json .server/strangerdanger/manifest.json
+          fi
+
           (cd .server && python3 -m http.server 8080 &)
 
           # Temporarily point manifest to the local server
@@ -144,10 +153,9 @@ jobs:
           K_ALIAS="${KEY_ALIAS:-$K_ALIAS}"
           [ -z "$K_ALIAS" ] && K_ALIAS="android"
 
-          # Update and build using proper flags to avoid interactive prompts
-          bubblewrap update --yes --skipVersionUpgrade || bubblewrap update --yes
-
-          bubblewrap build --yes \
+          # Use a single 'y' to handle the "No checksum found" prompt
+          # but avoid the infinite 'yes' loop
+          echo "y" | bubblewrap build --yes \
             --signingKeyPath=keystore.p12 \
             --signingKeyAlias="$K_ALIAS" \
             --signingKeyPassword="${BUBBLEWRAP_KEY_PASSWORD:-android}" \
