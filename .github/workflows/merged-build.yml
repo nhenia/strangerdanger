@@ -74,7 +74,10 @@ jobs:
           fi
 
       - name: Export PWA
-        run: npx expo export --platform web
+        run: |
+          npx expo export --platform web
+          # Ensure the icon is at the root of the dist folder to match the manifest URL
+          cp assets/icon.png dist/icon.png
 
       - name: Generate Keystore
         id: keystore
@@ -128,20 +131,32 @@ jobs:
           BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           set +e
-          # Use secrets if available, otherwise fallback to env (debug defaults)
+          # Serve the dist folder locally so Bubblewrap can "download" the icons during build
+          mkdir -p .server/strangerdanger
+          cp -r dist/* .server/strangerdanger/
+          (cd .server && python3 -m http.server 8080 &)
+
+          # Temporarily point manifest to the local server
+          sed -i 's|https://hereliesaz.github.io|http://localhost:8080|g' twa-manifest.json
+
           K_PASS="${KEYSTORE_PASSWORD:-$KEYSTORE_PASSWORD}"
           [ -z "$K_PASS" ] && K_PASS="android"
-          K_ALIAS="${KEY_ALIAS:-$KEY_ALIAS}"
+          K_ALIAS="${KEY_ALIAS:-$K_ALIAS}"
           [ -z "$K_ALIAS" ] && K_ALIAS="android"
 
-          bubblewrap update --yes --skipVersionUpgrade || bubblewrap update --yes
-          bubblewrap build --yes \
+          # Use yes | to bypass interactive prompts
+          yes | bubblewrap update
+          yes | bubblewrap build \
             --signingKeyPath=keystore.p12 \
             --signingKeyAlias="$K_ALIAS" \
             --signingKeyPassword="${BUBBLEWRAP_KEY_PASSWORD:-android}" \
             --signingKeyStorePassword="${BUBBLEWRAP_KEYSTORE_PASSWORD:-android}" > build.log 2>&1
 
           EXIT_CODE=$?
+
+          # Revert manifest changes
+          sed -i 's|http://localhost:8080|https://hereliesaz.github.io|g' twa-manifest.json
+
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           cat build.log
           exit $EXIT_CODE
