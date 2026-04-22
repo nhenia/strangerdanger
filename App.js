@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, StatusBar, SafeAreaView } from 'react-native';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
-import { loadIsActive, saveIsActive, loadInteractionTypes } from './src/utils/storage';
+import { loadIsActive, saveIsActive, loadInteractionTypes, loadMoodRing, saveMoodRing } from './src/utils/storage';
 import { generateHandshake } from './src/utils/scripts';
 import { useProximity } from './src/hooks/useProximity';
 import AnimatedBackground from './src/components/AnimatedBackground';
+import MoodRing from './src/components/MoodRing';
 import HomeScreen from './src/screens/HomeScreen';
 import MatchFound from './src/screens/MatchFound';
 import Bridge from './src/screens/Bridge';
@@ -12,10 +13,17 @@ import Bridge from './src/screens/Bridge';
 const MainApp = () => {
   const { theme } = useTheme();
   const [isActive, setIsActive] = useState(false);
+  const [mood, setMood] = useState('none');
 
   useEffect(() => {
     loadIsActive().then(setIsActive);
+    loadMoodRing().then(setMood);
   }, []);
+
+  const handleMoodChange = async (newMood) => {
+    setMood(newMood);
+    await saveMoodRing(newMood);
+  };
 
   const {
     matchingState,
@@ -58,6 +66,7 @@ const MainApp = () => {
       ) : (
         <HomeScreen isActive={isActive} onToggle={handleToggleActive} matchingState={matchingState} />
       )}
+      <MoodRing mood={mood} />
     </SafeAreaView>
   );
 };
