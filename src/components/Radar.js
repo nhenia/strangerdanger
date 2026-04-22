@@ -1,13 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StyleSheet, View, Animated, Easing, Text } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { Radio } from 'lucide-react-native';
 
-const Radar = ({ isActive }) => {
+const Radar = ({ isActive, signalBars, distance }) => {
   const { theme } = useTheme();
   const pulseAnim = useRef(new Animated.Value(0)).current;
-  const [signalBars, setSignalBars] = useState(1);
-  const [distance, setDistance] = useState(100); // meters
 
   useEffect(() => {
     if (isActive) {
@@ -21,21 +19,8 @@ const Radar = ({ isActive }) => {
         })
       ).start();
 
-      // Random walk for signal/distance simulation
-      const interval = setInterval(() => {
-        setSignalBars(prev => {
-          const delta = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
-          return Math.max(1, Math.min(5, prev + delta));
-        });
-        setDistance(prev => {
-          const delta = Math.floor(Math.random() * 5) - 2; // -2 to 2
-          return Math.max(1, Math.min(100, prev + delta));
-        });
-      }, 1500);
-
       return () => {
         pulseAnim.setValue(0);
-        clearInterval(interval);
       };
     }
   }, [isActive]);
