@@ -237,7 +237,7 @@ const HomeScreen = ({ onToggle, isActive, mood, onMoodChange }) => {
           </View>
         </View>
 
-        {isActive && <Radar isActive={isActive} />}
+        {isActive && <Radar isActive={isActive} matchingState={matchingState} />}
 
         {!isActive && (
           <>

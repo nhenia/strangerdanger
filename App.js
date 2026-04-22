@@ -64,7 +64,7 @@ const MainApp = () => {
       ) : matchingState === 'match_found' ? (
         <MatchFound onAccept={handleMatchAccept} />
       ) : (
-        <HomeScreen isActive={isActive} onToggle={handleToggleActive} mood={mood} onMoodChange={handleMoodChange} />
+        <HomeScreen isActive={isActive} onToggle={handleToggleActive} matchingState={matchingState} />
       )}
       <MoodRing mood={mood} />
     </SafeAreaView>
