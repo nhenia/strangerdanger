@@ -135,12 +135,10 @@ jobs:
           mkdir -p .server/strangerdanger
           cp -r dist/* .server/strangerdanger/
 
-          # Expo 54 sometimes exports manifest as manifest.json or similar.
-          # Ensure it's where Bubblewrap expects it.
+          # Expo 54 exports manifest as manifest.json. Ensure it's there.
           if [ ! -f ".server/strangerdanger/manifest.json" ]; then
-            echo "Creating fallback manifest.json..."
-            # Bubblewrap mainly needs icons and basic metadata to start the build
-            cp twa-manifest.json .server/strangerdanger/manifest.json
+            echo "Searching for manifest in dist..."
+            find dist -name "*.json" -exec cp {} .server/strangerdanger/manifest.json \; -quit
           fi
 
           (cd .server && python3 -m http.server 8080 &)
@@ -153,8 +151,12 @@ jobs:
           K_ALIAS="${KEY_ALIAS:-$K_ALIAS}"
           [ -z "$K_ALIAS" ] && K_ALIAS="android"
 
-          # Use a single 'y' to handle the "No checksum found" prompt
-          # but avoid the infinite 'yes' loop
+          # 1. Update the project to generate the checksum file and handle prompts non-interactively
+          echo "Updating TWA project..."
+          bubblewrap update --yes --skipVersionUpgrade || echo "y" | bubblewrap update --yes
+
+          # 2. Build the TWA. If it still asks to regenerate, provide 'y' once.
+          echo "Building TWA..."
           echo "y" | bubblewrap build --yes \
             --signingKeyPath=keystore.p12 \
             --signingKeyAlias="$K_ALIAS" \
