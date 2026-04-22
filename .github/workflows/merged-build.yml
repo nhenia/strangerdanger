@@ -50,7 +50,6 @@ jobs:
           BUILD_NUMBER=$(git rev-list --count HEAD)
           MAJOR=$(grep 'versionMajor=' version.properties | cut -d'=' -f2 | tr -d '\r ')
           MINOR=$(grep 'versionMinor=' version.properties | cut -d'=' -f2 | tr -d '\r ')
-          # Find the commit where versionMinor was last changed
           MINOR_COMMIT=$(git blame -L '/versionMinor=/',+1 version.properties | awk '{print $1}' | tr -d '^')
           if [ -n "$MINOR_COMMIT" ]; then
             PATCH=$(git rev-list --count $MINOR_COMMIT..HEAD)
@@ -82,7 +81,6 @@ jobs:
       - name: Generate Keystore
         id: keystore
         run: |
-          # Always generate a keystore if one doesn't exist to ensure the build can be signed
           if [ ! -f "keystore.p12" ]; then
             echo "Generating default keystore..."
             keytool -genkey -v -keystore keystore.p12 -storetype PKCS12 -storepass android -alias android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
@@ -130,8 +128,13 @@ jobs:
           K_ALIAS="${KEY_ALIAS:-$K_ALIAS}"
           [ -z "$K_ALIAS" ] && K_ALIAS="android"
 
-          # Use printf to handle potential multiple prompts gracefully
-          printf "y\ny\ny\n" | bubblewrap build --yes \
+          # FORCE INIT TO BYPASS INTERACTIVE CHECKS
+          # We use init with all parameters to create a fresh, clean project state
+          # which includes the checksum file that build/update look for.
+          bubblewrap init --manifest=http://localhost:8080/strangerdanger/manifest.json --directory=. --metaData=false --anchorTagSelectMode=false --yes
+
+          # Build the TWA
+          bubblewrap build --yes \
             --signingKeyPath=keystore.p12 \
             --signingKeyAlias="$K_ALIAS" \
             --signingKeyPassword="${BUBBLEWRAP_KEY_PASSWORD:-$K_PASS}" \
@@ -167,12 +170,10 @@ jobs:
           elif [ -f "app-release-unsigned.apk" ]; then
             mv app-release-unsigned.apk "$APK_NAME"
           else
-            # Fallback if bubblewrap output name differs
             find . -name "*.apk" -exec mv {} "$APK_NAME" \; -quit
           fi
 
           if [ -f "$APK_NAME" ]; then
-            # Create or update the release
             gh release create "$TAG_NAME" "$APK_NAME" \
               --title "v${MAJOR}.${MINOR} Build ${BUILD_NUMBER}" \
               --notes "Automated TWA build for version ${VERSION_NAME}" \
