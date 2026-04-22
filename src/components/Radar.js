@@ -11,6 +11,11 @@ const Radar = ({ isActive, matchingState }) => {
 
   useEffect(() => {
     if (isActive) {
+      const pulseDuration =
+        matchingState === 'scanning' ? 3000 :
+        matchingState === 'pinging' ? 1500 :
+        matchingState === 'matching' ? 800 : 2000;
+
       // Pulse animation
       const animation = Animated.loop(
         Animated.timing(pulseAnim, {

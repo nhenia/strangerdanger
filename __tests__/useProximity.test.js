@@ -10,6 +10,14 @@ describe('useProximity', () => {
     expect(result.current.matchingState).toBe('none');
   });
 
+  it('should transition through scanning, pinging, and matching when active', async () => {
+    const { result } = await renderHook(() => useProximity(true));
+    expect(result.current.matchingState).toBe('scanning');
+
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+    expect(result.current.matchingState).toBe('pinging');
   it('should transition to "broadcasting" when active', async () => {
     const { result } = await renderHook(() => useProximity(true));
     expect(result.current.matchingState).toBe('broadcasting');
@@ -26,6 +34,12 @@ describe('useProximity', () => {
     expect(result.current.matchingState).toBe('scanning');
 
     await act(async () => {
+      jest.advanceTimersByTime(4000);
+    });
+    expect(result.current.matchingState).toBe('matching');
+
+    await act(async () => {
+      jest.advanceTimersByTime(4000);
       jest.advanceTimersByTime(5001);
     });
     expect(result.current.matchingState).toBe('pinpointing');
