@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, StatusBar, SafeAreaView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, View, StatusBar, SafeAreaView, PanResponder } from 'react-native';
+import { useKeepAwake } from 'expo-keep-awake';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
+import { useIdleTimer } from './src/hooks/useIdleTimer';
 import { loadIsActive, saveIsActive, loadInteractionTypes, loadMoodRing, saveMoodRing } from './src/utils/storage';
 import { generateHandshake } from './src/utils/scripts';
 import { useProximity } from './src/hooks/useProximity';
@@ -14,6 +16,38 @@ const MainApp = () => {
   const { theme } = useTheme();
   const [isActive, setIsActive] = useState(false);
   const [mood, setMood] = useState('none');
+  const { isIdle, resetTimer } = useIdleTimer(30000); // 30 seconds idle
+
+  // Keep awake conditionally based on whether a mood is active.
+  // expo-keep-awake does not accept a boolean param for the hook, so we
+  // conditionally call the hook's effects using standard React logic
+  // (actually, expo-keep-awake provides activate/deactivate functions)
+
+  // It's cleaner to use the imperative API for conditional keeping awake
+  useEffect(() => {
+    const keepAwake = async () => {
+      const { activateKeepAwakeAsync, deactivateKeepAwake } = await import('expo-keep-awake');
+      if (mood && mood !== 'none') {
+        await activateKeepAwakeAsync();
+      } else {
+        await deactivateKeepAwake();
+      }
+    };
+    keepAwake();
+  }, [mood]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponderCapture: () => {
+        resetTimer();
+        return false;
+      },
+      onMoveShouldSetPanResponderCapture: () => {
+        resetTimer();
+        return false;
+      },
+    })
+  ).current;
 
   useEffect(() => {
     loadIsActive().then(setIsActive);
@@ -50,22 +84,30 @@ const MainApp = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-      <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} />
-      <AnimatedBackground />
+    <SafeAreaView style={{ flex: 1, backgroundColor: isIdle ? '#000' : theme.background }} {...panResponder.panHandlers}>
+      <StatusBar barStyle={isIdle ? 'light-content' : (theme.isDark ? 'light-content' : 'dark-content')} hidden={isIdle} />
 
-      {matchingState === 'bridge' ? (
-        <Bridge
-          myAnchor={myAnchor}
-          theirAnchor={theirAnchor}
-          handshake={matchData}
-          onDismiss={handleDismiss}
-        />
-      ) : matchingState === 'match_found' ? (
-        <MatchFound onAccept={handleMatchAccept} />
-      ) : (
-        <HomeScreen isActive={isActive} onToggle={handleToggleActive} mood={mood} onMoodChange={handleMoodChange} />
+      {!isIdle && <AnimatedBackground />}
+
+      {!isIdle && (
+        matchingState === 'bridge' ? (
+          <Bridge
+            myAnchor={myAnchor}
+            theirAnchor={theirAnchor}
+            handshake={matchData}
+            onDismiss={handleDismiss}
+          />
+        ) : matchingState === 'match_found' ? (
+          <MatchFound onAccept={handleMatchAccept} />
+        ) : (
+          <HomeScreen isActive={isActive} onToggle={handleToggleActive} mood={mood} onMoodChange={handleMoodChange} />
+        )
       )}
+
+      {isIdle && (
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#000', zIndex: 9000 }]} />
+      )}
+
       <MoodRing mood={mood} />
     </SafeAreaView>
   );
