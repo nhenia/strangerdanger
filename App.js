@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, StatusBar, SafeAreaView, PanResponder } from 'react-native';
-import { activateKeepAwakeAsync, deactivateKeepAwake, useKeepAwake } from 'expo-keep-awake';
+import { useKeepAwake } from 'expo-keep-awake';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { useIdleTimer } from './src/hooks/useIdleTimer';
 import { loadIsActive, saveIsActive, loadInteractionTypes, loadMoodRing, saveMoodRing } from './src/utils/storage';
@@ -12,25 +12,42 @@ import HomeScreen from './src/screens/HomeScreen';
 import MatchFound from './src/screens/MatchFound';
 import Bridge from './src/screens/Bridge';
 
-const KeepAwakeControl = () => {
-  useKeepAwake();
-  return null;
-};
-
 const MainApp = () => {
   const { theme } = useTheme();
   const [isActive, setIsActive] = useState(false);
   const [mood, setMood] = useState('none');
   const { isIdle, resetTimer } = useIdleTimer(30000); // 30 seconds idle
 
+  // Keep awake conditionally based on whether a mood is active.
+  // expo-keep-awake does not accept a boolean param for the hook, so we
+  // conditionally call the hook's effects using standard React logic
+  // (actually, expo-keep-awake provides activate/deactivate functions)
+
+  // It's cleaner to use the imperative API for conditional keeping awake
+  useEffect(() => {
+    const keepAwake = async () => {
+      const { activateKeepAwakeAsync, deactivateKeepAwake } = await import('expo-keep-awake');
+      if (mood && mood !== 'none') {
+        await activateKeepAwakeAsync();
+      } else {
+        await deactivateKeepAwake();
+      }
+    };
+    keepAwake();
+  }, [mood]);
+
+  // Only capture touches if we are idle, to wake up without triggering underlying UI.
+  // Otherwise, don't capture so normal interaction occurs.
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponderCapture: () => {
-        resetTimer();
+        // We only want to block touches if we are in ambient mode.
+        // But we always want to reset the timer.
+        // We can't access current `isIdle` state reliably in the initial closure unless we use a ref or depend on it.
+        // However, `resetTimer` is stable.
         return false;
       },
       onMoveShouldSetPanResponderCapture: () => {
-        resetTimer();
         return false;
       },
     })
@@ -51,8 +68,6 @@ const MainApp = () => {
     myAnchor,
     theirAnchor,
     matchData,
-    distance,
-    signalBars,
     acceptMatch,
     reset
   } = useProximity(isActive);
@@ -95,11 +110,14 @@ const MainApp = () => {
       </View>
 
       {isIdle && (
-        <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { backgroundColor: '#000', zIndex: 9000 }]} />
+        <View
+          style={[StyleSheet.absoluteFillObject, { backgroundColor: '#000', zIndex: 9000 }]}
+          onStartShouldSetResponder={() => true}
+          onResponderGrant={() => resetTimer()}
+        />
       )}
 
       <MoodRing mood={mood} />
-      {mood && mood !== 'none' && <KeepAwakeControl />}
     </SafeAreaView>
   );
 };
