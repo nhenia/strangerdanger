@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -35,6 +37,30 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Calculate version
+        id: version
+        run: |
+          BUILD_NUMBER=$(git rev-list --count HEAD)
+          MAJOR=$(grep 'versionMajor=' version.properties | cut -d'=' -f2 | tr -d '\r ')
+          MINOR=$(grep 'versionMinor=' version.properties | cut -d'=' -f2 | tr -d '\r ')
+          MINOR_COMMIT=$(git blame -L '/versionMinor=/',+1 version.properties | awk '{print $1}' | tr -d '^')
+          if [ -n "$MINOR_COMMIT" ]; then
+            PATCH=$(git rev-list --count $MINOR_COMMIT..HEAD)
+          else
+            PATCH=$(grep 'versionPatch=' version.properties | cut -d'=' -f2 | tr -d '\r ')
+          fi
+          VERSION_NAME="${MAJOR}.${MINOR}.${PATCH}.${BUILD_NUMBER}"
+          echo "VERSION_NAME=${VERSION_NAME}" >> $GITHUB_ENV
+          echo "Calculated Version: ${VERSION_NAME}"
+
+      - name: Update manifest versions
+        run: |
+          # Update package.json and app.json with the calculated version
+          jq ".version = \"${VERSION_NAME}\"" package.json > temp.json && mv temp.json package.json
+          if [ -f "app.json" ]; then
+            jq ".expo.version = \"${VERSION_NAME}\" | .expo.android.versionCode = ${BUILD_NUMBER} | .expo.ios.buildNumber = \"${BUILD_NUMBER}\"" app.json > temp.json && mv temp.json app.json
+          fi
 
       - name: Build
         run: npx expo export --platform web

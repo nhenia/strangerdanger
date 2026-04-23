@@ -1,9 +1,9 @@
 name: Merged TWA Build & Release
 on:
-  push:
-    branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
+  workflow_run:
+    workflows: ["Deploy static content to Pages"]
+    types:
+      - completed
   workflow_dispatch:
 
 env:
@@ -17,6 +17,7 @@ jobs:
   build-and-release:
     name: Android TWA Build & Release
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: write
       issues: write
@@ -50,7 +51,6 @@ jobs:
           BUILD_NUMBER=$(git rev-list --count HEAD)
           MAJOR=$(grep 'versionMajor=' version.properties | cut -d'=' -f2 | tr -d '\r ')
           MINOR=$(grep 'versionMinor=' version.properties | cut -d'=' -f2 | tr -d '\r ')
-          # Find the commit where versionMinor was last changed
           MINOR_COMMIT=$(git blame -L '/versionMinor=/',+1 version.properties | awk '{print $1}' | tr -d '^')
           if [ -n "$MINOR_COMMIT" ]; then
             PATCH=$(git rev-list --count $MINOR_COMMIT..HEAD)
@@ -66,18 +66,8 @@ jobs:
 
       - name: Update manifest versions
         run: |
-          # Update TWA manifest, package.json and app.json with the calculated version
+          # Update TWA manifest with the calculated version
           jq ".appVersionName = \"${VERSION_NAME}\" | .appVersionCode = ${BUILD_NUMBER}" twa-manifest.json > temp.json && mv temp.json twa-manifest.json
-          jq ".version = \"${VERSION_NAME}\"" package.json > temp.json && mv temp.json package.json
-          if [ -f "app.json" ]; then
-            jq ".expo.version = \"${VERSION_NAME}\" | .expo.android.versionCode = ${BUILD_NUMBER} | .expo.ios.buildNumber = \"${BUILD_NUMBER}\"" app.json > temp.json && mv temp.json app.json
-          fi
-
-      - name: Export PWA
-        run: |
-          npx expo export --platform web
-          # Ensure the icon is at the root of the dist folder to match the manifest URL
-          cp assets/icon.png dist/icon.png
 
       - name: Generate Keystore
         id: keystore
@@ -90,7 +80,7 @@ jobs:
             echo "SIGNING_KEY_PASSWORD=android" >> $GITHUB_ENV
           fi
 
-      - name: Install Bubblewrap
+      - name: Install Bubblewrap CLI
         run: npm install -g @bubblewrap/cli
 
       - name: Initialize Bubblewrap config
@@ -106,76 +96,51 @@ jobs:
           SECRET_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set +e
-          # Serve the dist folder locally
-          mkdir -p .server/strangerdanger
-          cp -r dist/* .server/strangerdanger/
 
-          # Find the manifest in dist and ensure it's at the expected path
-          MANIFEST_PATH=$(find dist -name "*.json" -not -name "twa-manifest.json" | head -n 1)
-          if [ -n "$MANIFEST_PATH" ]; then
-            cp "$MANIFEST_PATH" .server/strangerdanger/manifest.json
-          else
-            cp twa-manifest.json .server/strangerdanger/manifest.json
-          fi
+          # Use live PWA URL for manifest and icons
+          # This requires the 'Deploy static content to Pages' workflow to have finished.
 
-          (cd .server && python3 -m http.server 8080 &)
+          K_PASS="${SECRET_KEYSTORE_PASSWORD:-android}"
+          K_ALIAS="${SECRET_KEY_ALIAS:-android}"
+          K_KEY_PASS="${SECRET_KEY_PASSWORD:-android}"
 
-          # Temporarily point manifest to the local server
-          sed -i 's|https://hereliesaz.github.io|http://localhost:8080|g' twa-manifest.json
+          export BUBBLEWRAP_KEYSTORE_PASSWORD="$K_PASS"
+          export BUBBLEWRAP_KEY_PASSWORD="$K_KEY_PASS"
 
-          # Prioritize secrets over generated defaults
-          FINAL_KS_PASS="${SECRET_KEYSTORE_PASSWORD:-$SIGNING_KEYSTORE_PASSWORD}"
-          FINAL_K_PASS="${SECRET_KEY_PASSWORD:-$SIGNING_KEY_PASSWORD}"
-          FINAL_ALIAS="${SECRET_KEY_ALIAS:-$SIGNING_KEY_ALIAS}"
+          echo "Initializing TWA project from live manifest..."
+          bubblewrap init --manifest=https://hereliesaz.github.io/strangerdanger/manifest.json --yes
 
-          # Export for Bubblewrap to pick up via env
-          export BUBBLEWRAP_KEYSTORE_PASSWORD="$FINAL_KS_PASS"
-          export BUBBLEWRAP_KEY_PASSWORD="$FINAL_K_PASS"
-
-          # 1. Update the project
-          echo "Updating TWA project..."
-          echo "y" | bubblewrap update --yes --skipVersionUpgrade || echo "y" | bubblewrap update --yes
-
-          # 2. Build the TWA
           echo "Building TWA..."
-          printf "y\n\n" | bubblewrap build --yes \
+          bubblewrap build --yes \
             --signingKeyPath=keystore.p12 \
-            --signingKeyAlias="$FINAL_ALIAS" \
-            --signingKeyPassword="$FINAL_K_PASS" \
-            --signingKeyStorePassword="$FINAL_KS_PASS" > build.log 2>&1
+            --signingKeyAlias="$K_ALIAS" \
+            --signingKeyPassword="$K_KEY_PASS" \
+            --signingKeyStorePassword="$K_PASS" > build.log 2>&1
 
           EXIT_CODE=$?
-
-          # Revert manifest changes
-          sed -i 's|http://localhost:8080|https://hereliesaz.github.io|g' twa-manifest.json
-
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           cat build.log
           exit $EXIT_CODE
 
       - name: Handle Failure
-        if: failure() && github.event_name == 'push'
+        if: failure()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           LOG_TAIL=$(tail -c 4000 build.log | sed 's/`/\`/g')
-          BODY="Build failed on branch \`${GITHUB_REF#refs/heads/}\`. ### Build Log (last 4000 chars): \`\`\` ${LOG_TAIL} \`\`\`"
-          gh issue create --title "Build Failure: ${GITHUB_SHA::7}" --body "$BODY" --label "bug" --assignee "HereLiesAz"
+          BODY="Build failed for version \`${VERSION_NAME}\`. ### Build Log (last 4000 chars): \`\`\` ${LOG_TAIL} \`\`\`"
+          gh issue create --title "TWA Build Failure: ${VERSION_NAME}" --body "$BODY" --label "bug" --assignee "HereLiesAz"
 
       - name: Create Release
-        if: success() && github.event_name == 'push'
+        if: success()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_NAME="latest-release-v${MAJOR}.${MINOR}"
+          TAG_NAME="v${MAJOR}.${MINOR}.${PATCH}"
           APK_NAME="strangerdanger-${VERSION_NAME}-release.apk"
-          if [ -f "app-release-signed.apk" ]; then
-            mv app-release-signed.apk "$APK_NAME"
-          elif [ -f "app-release-unsigned.apk" ]; then
-            mv app-release-unsigned.apk "$APK_NAME"
-          else
-            find . -name "*.apk" -exec mv {} "$APK_NAME" \; -quit
-          fi
+
+          # Find the generated APK
+          find . -name "*.apk" -exec mv {} "$APK_NAME" \; -quit
 
           if [ -f "$APK_NAME" ]; then
             gh release create "$TAG_NAME" "$APK_NAME" \
