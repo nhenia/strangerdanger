@@ -85,9 +85,9 @@ jobs:
           if [ ! -f "keystore.p12" ]; then
             echo "Generating default keystore..."
             keytool -genkey -v -keystore keystore.p12 -storetype PKCS12 -storepass android -alias android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-            echo "KEY_ALIAS=android" >> $GITHUB_ENV
-            echo "KEYSTORE_PASSWORD=android" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=android" >> $GITHUB_ENV
+            echo "SIGNING_KEY_ALIAS=android" >> $GITHUB_ENV
+            echo "SIGNING_KEYSTORE_PASSWORD=android" >> $GITHUB_ENV
+            echo "SIGNING_KEY_PASSWORD=android" >> $GITHUB_ENV
           fi
 
       - name: Install Bubblewrap
@@ -101,17 +101,16 @@ jobs:
       - name: Build TWA
         id: build-twa
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SECRET_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SECRET_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          SECRET_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set +e
           # Serve the dist folder locally
           mkdir -p .server/strangerdanger
           cp -r dist/* .server/strangerdanger/
 
-          # Ensure manifest.json is at the expected path
+          # Find the manifest in dist and ensure it's at the expected path
           MANIFEST_PATH=$(find dist -name "*.json" -not -name "twa-manifest.json" | head -n 1)
           if [ -n "$MANIFEST_PATH" ]; then
             cp "$MANIFEST_PATH" .server/strangerdanger/manifest.json
@@ -124,23 +123,26 @@ jobs:
           # Temporarily point manifest to the local server
           sed -i 's|https://hereliesaz.github.io|http://localhost:8080|g' twa-manifest.json
 
-          K_PASS="${KEYSTORE_PASSWORD:-$KEYSTORE_PASSWORD}"
-          [ -z "$K_PASS" ] && K_PASS="android"
-          K_ALIAS="${KEY_ALIAS:-$K_ALIAS}"
-          [ -z "$K_ALIAS" ] && K_ALIAS="android"
+          # Prioritize secrets over generated defaults
+          FINAL_KS_PASS="${SECRET_KEYSTORE_PASSWORD:-$SIGNING_KEYSTORE_PASSWORD}"
+          FINAL_K_PASS="${SECRET_KEY_PASSWORD:-$SIGNING_KEY_PASSWORD}"
+          FINAL_ALIAS="${SECRET_KEY_ALIAS:-$SIGNING_KEY_ALIAS}"
 
-          # 1. Answer 'y' to the regeneration prompt, but skip version prompts with flags
-          echo "Syncing TWA project..."
-          echo "y" | bubblewrap update --yes --skipVersionUpgrade
+          # Export for Bubblewrap to pick up via env
+          export BUBBLEWRAP_KEYSTORE_PASSWORD="$FINAL_KS_PASS"
+          export BUBBLEWRAP_KEY_PASSWORD="$FINAL_K_PASS"
 
-          # 2. Build the TWA. Since we just updated, it should be silent.
-          # If it STILL prompts, printf "y\n\n" handles it safely.
+          # 1. Update the project
+          echo "Updating TWA project..."
+          echo "y" | bubblewrap update --yes --skipVersionUpgrade || echo "y" | bubblewrap update --yes
+
+          # 2. Build the TWA
           echo "Building TWA..."
           printf "y\n\n" | bubblewrap build --yes \
             --signingKeyPath=keystore.p12 \
-            --signingKeyAlias="$K_ALIAS" \
-            --signingKeyPassword="${BUBBLEWRAP_KEY_PASSWORD:-$K_PASS}" \
-            --signingKeyStorePassword="${BUBBLEWRAP_KEYSTORE_PASSWORD:-$K_PASS}" > build.log 2>&1
+            --signingKeyAlias="$FINAL_ALIAS" \
+            --signingKeyPassword="$FINAL_K_PASS" \
+            --signingKeyStorePassword="$FINAL_KS_PASS" > build.log 2>&1
 
           EXIT_CODE=$?
 
