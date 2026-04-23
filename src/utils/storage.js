@@ -5,6 +5,7 @@ const STORAGE_KEYS = {
   NO_LIST: 'permission_no_list',
   INTERACTION_TYPES: 'permission_interaction_types',
   THEME_ID: 'permission_theme_id',
+  MOOD_RING: 'permission_mood_ring',
 };
 
 export const saveIsActive = async (isActive) => {
@@ -76,5 +77,23 @@ export const loadThemeId = async () => {
   } catch (e) {
     console.error('Failed to load themeId', e);
     return 'glassmorphism';
+  }
+};
+
+export const saveMoodRing = async (mood) => {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.MOOD_RING, mood);
+  } catch (e) {
+    console.error('Failed to save mood ring', e);
+  }
+};
+
+export const loadMoodRing = async () => {
+  try {
+    const value = await AsyncStorage.getItem(STORAGE_KEYS.MOOD_RING);
+    return value !== null ? value : 'none';
+  } catch (e) {
+    console.error('Failed to load mood ring', e);
+    return 'none';
   }
 };
