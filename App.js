@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, StatusBar, SafeAreaView, PanResponder } from 'react-native';
-import { useKeepAwake } from 'expo-keep-awake';
+import { activateKeepAwakeAsync, deactivateKeepAwake, useKeepAwake } from 'expo-keep-awake';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { useIdleTimer } from './src/hooks/useIdleTimer';
 import { loadIsActive, saveIsActive, loadInteractionTypes, loadMoodRing, saveMoodRing } from './src/utils/storage';
@@ -12,29 +12,16 @@ import HomeScreen from './src/screens/HomeScreen';
 import MatchFound from './src/screens/MatchFound';
 import Bridge from './src/screens/Bridge';
 
+const KeepAwakeControl = () => {
+  useKeepAwake();
+  return null;
+};
+
 const MainApp = () => {
   const { theme } = useTheme();
   const [isActive, setIsActive] = useState(false);
   const [mood, setMood] = useState('none');
   const { isIdle, resetTimer } = useIdleTimer(30000); // 30 seconds idle
-
-  // Keep awake conditionally based on whether a mood is active.
-  // expo-keep-awake does not accept a boolean param for the hook, so we
-  // conditionally call the hook's effects using standard React logic
-  // (actually, expo-keep-awake provides activate/deactivate functions)
-
-  // It's cleaner to use the imperative API for conditional keeping awake
-  useEffect(() => {
-    const keepAwake = async () => {
-      const { activateKeepAwakeAsync, deactivateKeepAwake } = await import('expo-keep-awake');
-      if (mood && mood !== 'none') {
-        await activateKeepAwakeAsync();
-      } else {
-        await deactivateKeepAwake();
-      }
-    };
-    keepAwake();
-  }, [mood]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -112,6 +99,7 @@ const MainApp = () => {
       )}
 
       <MoodRing mood={mood} />
+      {mood && mood !== 'none' && <KeepAwakeControl />}
     </SafeAreaView>
   );
 };

@@ -14,7 +14,7 @@ const interactionOptions = [
   { id: 'mysterious', label: 'Mysterious' },
 ];
 
-const HomeScreen = ({ onToggle, isActive, matchingState }) => {
+const HomeScreen = ({ onToggle, isActive, matchingState, mood, onMoodChange }) => {
   const { theme, setThemeId, themes } = useTheme();
   const [noList, setNoList] = useState('');
   const [interactionTypes, setInteractionTypesSelected] = useState(['conversation']);

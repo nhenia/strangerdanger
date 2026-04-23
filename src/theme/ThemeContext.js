@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { useFonts, Inter_400Regular, Inter_700Bold } from '@expo-google-fonts/inter';
 import { VT323_400Regular } from '@expo-google-fonts/vt323';
 import { themes } from './themes';
@@ -29,7 +30,11 @@ export const ThemeProvider = ({ children }) => {
   const theme = themes[themeId] || themes.pager;
 
   if (!fontsLoaded) {
-    return null; // Or a simple loader
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
   }
 
   return (
@@ -38,5 +43,18 @@ export const ThemeProvider = ({ children }) => {
     </ThemeContext.Provider>
   );
 };
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 18,
+  },
+});
 
 export const useTheme = () => useContext(ThemeContext);
