@@ -52,6 +52,7 @@ jobs:
           fi
           VERSION_NAME="${MAJOR}.${MINOR}.${PATCH}.${BUILD_NUMBER}"
           echo "VERSION_NAME=${VERSION_NAME}" >> $GITHUB_ENV
+          echo "BUILD_NUMBER=${BUILD_NUMBER}" >> $GITHUB_ENV
           echo "Calculated Version: ${VERSION_NAME}"
 
       - name: Update manifest versions
