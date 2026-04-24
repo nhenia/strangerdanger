@@ -15,4 +15,9 @@ describe('generateHandshake', () => {
     expect(handshake1.type).toBe('conversation');
     expect(handshake2.type).toBe('silent');
   });
+
+  it('should handle multiple interaction types', () => {
+    const handshake = generateHandshake(['conversation', 'silent', 'activity'], 'A', 'B');
+    expect(['conversation', 'silent', 'activity']).toContain(handshake.type);
+  });
 });

@@ -1,0 +1,157 @@
+name: Merged TWA Build & Release
+on:
+  workflow_run:
+    workflows: ["Deploy static content to Pages"]
+    types:
+      - completed
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    name: Android TWA Build & Release
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Calculate version
+        id: version
+        run: |
+          BUILD_NUMBER=$(git rev-list --count HEAD)
+          MAJOR=$(grep 'versionMajor=' version.properties | cut -d'=' -f2 | tr -d '\r ')
+          MINOR=$(grep 'versionMinor=' version.properties | cut -d'=' -f2 | tr -d '\r ')
+          MINOR_COMMIT=$(git blame -L '/versionMinor=/',+1 version.properties | awk '{print $1}' | tr -d '^')
+          if [ -n "$MINOR_COMMIT" ]; then
+            PATCH=$(git rev-list --count $MINOR_COMMIT..HEAD)
+          else
+            PATCH=$(grep 'versionPatch=' version.properties | cut -d'=' -f2 | tr -d '\r ')
+          fi
+          VERSION_NAME="${MAJOR}.${MINOR}.${PATCH}.${BUILD_NUMBER}"
+          echo "VERSION_NAME=${VERSION_NAME}" >> $GITHUB_ENV
+          echo "BUILD_NUMBER=${BUILD_NUMBER}" >> $GITHUB_ENV
+          echo "MAJOR=${MAJOR}" >> $GITHUB_ENV
+          echo "MINOR=${MINOR}" >> $GITHUB_ENV
+          echo "Calculated Version: ${VERSION_NAME}"
+
+      - name: Update manifest versions
+        run: |
+          # Update TWA manifest with the calculated version
+          jq ".appVersionName = \"${VERSION_NAME}\" | .appVersionCode = ${BUILD_NUMBER}" twa-manifest.json > temp.json && mv temp.json twa-manifest.json
+
+      - name: Generate Keystore
+        id: keystore
+        run: |
+          if [ ! -f "keystore.p12" ]; then
+            echo "Generating default keystore..."
+            keytool -genkey -v -keystore keystore.p12 -storetype PKCS12 -storepass android -alias android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+            echo "SIGNING_KEY_ALIAS=android" >> $GITHUB_ENV
+            echo "SIGNING_KEYSTORE_PASSWORD=android" >> $GITHUB_ENV
+            echo "SIGNING_KEY_PASSWORD=android" >> $GITHUB_ENV
+          fi
+
+      - name: Install Bubblewrap CLI
+        run: npm install -g @bubblewrap/cli
+
+      - name: Initialize Bubblewrap config
+        run: |
+          mkdir -p ~/.bubblewrap
+          echo "{\"jdkPath\":\"$JAVA_HOME\",\"androidSdkPath\":\"$ANDROID_SDK_ROOT\"}" > ~/.bubblewrap/config.json
+
+      - name: Build TWA
+        id: build-twa
+        env:
+          SECRET_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SECRET_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          SECRET_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set +e
+
+          # Use live PWA URL for manifest and icons
+          # This requires the 'Deploy static content to Pages' workflow to have finished.
+
+          K_PASS="${SECRET_KEYSTORE_PASSWORD:-android}"
+          K_ALIAS="${SECRET_KEY_ALIAS:-android}"
+          K_KEY_PASS="${SECRET_KEY_PASSWORD:-android}"
+
+          export BUBBLEWRAP_KEYSTORE_PASSWORD="$K_PASS"
+          export BUBBLEWRAP_KEY_PASSWORD="$K_KEY_PASS"
+
+          echo "Initializing TWA project from live manifest..."
+          bubblewrap init --manifest=https://hereliesaz.github.io/strangerdanger/manifest.json --yes
+
+          echo "Building TWA..."
+          bubblewrap build --yes \
+            --signingKeyPath=keystore.p12 \
+            --signingKeyAlias="$K_ALIAS" \
+            --signingKeyPassword="$K_KEY_PASS" \
+            --signingKeyStorePassword="$K_PASS" > build.log 2>&1
+
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          cat build.log
+          exit $EXIT_CODE
+
+      - name: Handle Failure
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LOG_TAIL=$(tail -c 4000 build.log | sed 's/`/\`/g')
+          BODY="Build failed for version \`${VERSION_NAME}\`. ### Build Log (last 4000 chars): \`\`\` ${LOG_TAIL} \`\`\`"
+          gh issue create --title "TWA Build Failure: ${VERSION_NAME}" --body "$BODY" --label "bug" --assignee "HereLiesAz"
+
+      - name: Create Release
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="v${MAJOR}.${MINOR}.${PATCH}"
+          APK_NAME="strangerdanger-${VERSION_NAME}-release.apk"
+
+          # Find the generated APK
+          find . -name "*.apk" -exec mv {} "$APK_NAME" \; -quit
+
+          if [ -f "$APK_NAME" ]; then
+            gh release create "$TAG_NAME" "$APK_NAME" \
+              --title "v${MAJOR}.${MINOR} Build ${BUILD_NUMBER}" \
+              --notes "Automated TWA build for version ${VERSION_NAME}" \
+              --target main || \
+            gh release upload "$TAG_NAME" "$APK_NAME" --clobber
+          fi
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-android-${{ env.VERSION_NAME }}
+          path: strangerdanger-*-release.apk
