@@ -41,13 +41,11 @@ const MainApp = () => {
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponderCapture: () => {
-        // We only want to block touches if we are in ambient mode.
-        // But we always want to reset the timer.
-        // We can't access current `isIdle` state reliably in the initial closure unless we use a ref or depend on it.
-        // However, `resetTimer` is stable.
+        resetTimer();
         return false;
       },
       onMoveShouldSetPanResponderCapture: () => {
+        resetTimer();
         return false;
       },
     })

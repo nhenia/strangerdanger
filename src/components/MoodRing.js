@@ -33,9 +33,9 @@ const MoodRing = ({ mood }) => {
 
   const getMoodColor = () => {
     switch (mood) {
-      case 'red': return '#ff3b30'; // iOS Red
-      case 'yellow': return '#ffcc00'; // iOS Yellow
-      case 'green': return '#34c759'; // iOS Green
+      case 'red': return '#FF0000'; // Pure Red
+      case 'yellow': return '#FFFF00'; // Pure Yellow
+      case 'green': return '#00FF00'; // Pure Green
       default: return 'transparent';
     }
   };
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   },
   ring: {
     ...StyleSheet.absoluteFillObject,
-    borderWidth: 8,
+    borderWidth: 2,
     shadowOffset: { width: 0, height: 0 },
     shadowRadius: 15,
     elevation: 20, // For Android

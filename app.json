@@ -25,12 +25,10 @@
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": "./assets/favicon.png",
-      "bundler": "metro",
-      "baseUrl": "/strangerdanger"
+      "favicon": "./assets/favicon.png"
     },
-    "experiments": {
-      "baseUrl": "/strangerdanger"
-    }
+    "plugins": [
+      "./plugins/withAndroidOverlay.js"
+    ]
   }
 }
