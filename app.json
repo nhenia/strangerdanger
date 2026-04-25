@@ -25,7 +25,11 @@
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "shortName": "Permission",
+      "name": "Permission App",
+      "themeColor": "#000000",
+      "backgroundColor": "#ffffff"
     },
     "plugins": [
       "./plugins/withAndroidOverlay.js"

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, StatusBar, SafeAreaView, PanResponder } from 'react-native';
-import { useKeepAwake } from 'expo-keep-awake';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { useIdleTimer } from './src/hooks/useIdleTimer';
 import { loadIsActive, saveIsActive, loadInteractionTypes, loadMoodRing, saveMoodRing } from './src/utils/storage';
