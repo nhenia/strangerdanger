@@ -3,7 +3,6 @@ import { test, expect } from '@playwright/test';
 test('app loads and shows title', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('PERMISSION')).toBeVisible();
-  await page.screenshot({ path: 'screenshots/home.png' });
 });
 
 test('can toggle theme', async ({ page }) => {
@@ -19,5 +18,4 @@ test('can toggle theme', async ({ page }) => {
 
   // Click Vapor theme
   await page.getByText('Vapor').click();
-  await page.screenshot({ path: 'screenshots/theme-vapor.png' });
 });
