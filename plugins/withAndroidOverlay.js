@@ -164,9 +164,14 @@ public class OverlayService extends Service {
   ]);
 };
 
+const pkg = { name: 'withAndroidOverlay', version: '1.0.0' };
+
+const withMyOverlay = (config) => {
+  return withAndroidServiceSource(withAndroidOverlay(config));
+};
+
 module.exports = createRunOncePlugin(
-  (config) => withAndroidServiceSource(withAndroidOverlay(config)),
-  withAndroidOverlay,
-  'withAndroidOverlay',
-  '1.0.0'
+  withMyOverlay,
+  pkg.name,
+  pkg.version
 );
