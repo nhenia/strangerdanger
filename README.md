@@ -4,14 +4,14 @@ A brief description of what this project does and who it's for.
 
 ## Deployment
 
-This repository includes a GitHub Actions workflow to automatically deploy the PWA to GitHub Pages on every push to `main` or `master`.
+The project is configured with a two-stage automated deployment:
+1. **PWA Deployment**: Every push to `main` builds and deploys the web app to GitHub Pages.
+2. **Android Build**: After the web app is live, a separate workflow fetches the `manifest.json` from the live site and generates a signed Android APK.
 
-To enable this:
-1. Go to your repository settings on GitHub.
-2. Navigate to **Pages** in the left sidebar.
-3. Under **Build and deployment > Source**, select **GitHub Actions**.
-
-The PWA will be built using `npx expo export` and deployed to the GitHub Pages environment.
+### GitHub Secrets
+To enable Android builds, add the following secrets to your repository:
+- `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`
+- `KEYSTORE_RAW` (Optional: Base64 encoded JKS if you have your own)
 
 ## Getting Started
 
