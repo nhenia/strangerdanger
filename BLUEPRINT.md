@@ -30,8 +30,8 @@ PERMISSION is a proximity-based interaction tool designed for total user anonymi
 ### Phase 2: Refinement & Robustness (Next Steps)
 - [x] Modularize proximity logic into hooks.
 - [x] Implement Comprehensive Test Suite (Jest & Playwright).
-- [ ] Refine Radar simulation with more granular states.
-- [ ] Enhance Visual Anchor script variety.
+- [x] Refine Radar simulation with more granular states (Scanning, Pinging, Matching).
+- [x] Enhance Visual Anchor script variety (Added Humor and Mysterious categories).
 
 ### Phase 3: Real Proximity (Future)
 - [ ] Research and implement actual proximity detection (Bluetooth LE, Web Bluetooth, or Geolocation-based).
