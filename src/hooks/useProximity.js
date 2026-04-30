@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
  * In a real-world scenario, this would interface with Bluetooth LE or Geolocation APIs.
  */
 export const useProximity = (isActive) => {
-  const [matchingState, setMatchingState] = useState('none'); // none, finding, match_found, bridge
+  const [matchingState, setMatchingState] = useState('none'); // none, broadcasting, scanning, matching, pinpointing, match_found, bridge
   const [myAnchor, setMyAnchor] = useState('');
   const [theirAnchor, setTheirAnchor] = useState('');
   const [matchData, setMatchData] = useState(null);
@@ -18,33 +18,65 @@ export const useProximity = (isActive) => {
 
     if (isActive) {
       if (matchingState === 'none') {
-        setMatchingState('finding');
+        setMatchingState('broadcasting');
         setDistance(100);
         setSignalBars(1);
       }
 
-      if (matchingState === 'finding') {
-        // Simulate finding a match after a random delay
+      if (matchingState === 'broadcasting') {
         timer = setTimeout(() => {
-          if (interval) clearInterval(interval);
+          setMatchingState('scanning');
+        }, 3000);
+      }
+
+      if (matchingState === 'scanning') {
+        timer = setTimeout(() => {
+          setMatchingState('matching');
+        }, 4000);
+      }
+
+      if (matchingState === 'matching') {
+        timer = setTimeout(() => {
+          setMatchingState('pinpointing');
+        }, 4000);
+      }
+
+      if (matchingState === 'pinpointing') {
+        timer = setTimeout(() => {
           setMatchingState('match_found');
           setDistance(0);
           setSignalBars(5);
-        }, 7000 + Math.random() * 3000); // 7-10 seconds
-
-        // Random walk for signal/distance simulation while finding
-        interval = setInterval(() => {
-          setSignalBars(prev => {
-            const delta = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
-            return Math.max(1, Math.min(5, prev + delta));
-          });
-          setDistance(prev => {
-            // Gradually decrease distance
-            const decrease = Math.floor(Math.random() * 10) + 5; // 5-15 meters per interval
-            return Math.max(5, prev - decrease);
-          });
-        }, 1500);
+        }, 5000);
       }
+
+      // Random walk for signal/distance simulation based on state
+      interval = setInterval(() => {
+        setSignalBars(prev => {
+          let min = 1, max = 5;
+          if (matchingState === 'broadcasting') { min = 1; max = 1; }
+          else if (matchingState === 'scanning') { min = 1; max = 2; }
+          else if (matchingState === 'matching') { min = 2; max = 3; }
+          else if (matchingState === 'pinpointing') { min = 4; max = 5; }
+          else if (matchingState === 'match_found') { min = 5; max = 5; }
+
+          const delta = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
+          return Math.max(min, Math.min(max, prev + delta));
+        });
+
+        setDistance(prev => {
+          if (matchingState === 'broadcasting') return 100;
+          if (matchingState === 'match_found') return 0;
+
+          let target = 100;
+          if (matchingState === 'scanning') target = 50;
+          else if (matchingState === 'matching') target = 20;
+          else if (matchingState === 'pinpointing') target = 5;
+
+          const step = (prev - target) * 0.1;
+          const noise = Math.random() * 2 - 1;
+          return Math.max(target, Math.round(prev - step + noise));
+        });
+      }, 1500);
     } else {
       setMatchingState('none');
       setMyAnchor('');
