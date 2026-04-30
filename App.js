@@ -65,6 +65,8 @@ const MainApp = () => {
     myAnchor,
     theirAnchor,
     matchData,
+    distance,
+    signalBars,
     acceptMatch,
     reset
   } = useProximity(isActive);
@@ -102,7 +104,15 @@ const MainApp = () => {
         ) : matchingState === 'match_found' ? (
           <MatchFound onAccept={handleMatchAccept} />
         ) : (
-          <HomeScreen isActive={isActive} onToggle={handleToggleActive} mood={mood} onMoodChange={handleMoodChange} />
+          <HomeScreen
+            isActive={isActive}
+            onToggle={handleToggleActive}
+            mood={mood}
+            onMoodChange={handleMoodChange}
+            matchingState={matchingState}
+            distance={distance}
+            signalBars={signalBars}
+          />
         )}
       </View>
 

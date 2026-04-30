@@ -1,5 +1,20 @@
 import { renderHook, act } from '@testing-library/react-native';
 import { useProximity } from '../src/hooks/useProximity';
+import * as Location from 'expo-location';
+
+// Mocking expo-location
+jest.mock('expo-location', () => ({
+  requestForegroundPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  getCurrentPositionAsync: jest.fn(() => Promise.resolve({
+    coords: { latitude: 0, longitude: 0, accuracy: 5 },
+  })),
+  watchPositionAsync: jest.fn((options, callback) => {
+    return Promise.resolve({
+      remove: jest.fn(),
+    });
+  }),
+  Accuracy: { High: 4 },
+}));
 
 // Mocking setTimeout
 jest.useFakeTimers();
@@ -10,20 +25,6 @@ describe('useProximity', () => {
     expect(result.current.matchingState).toBe('none');
   });
 
-
-  it('should transition to "finding" when active', async () => {
-    const { result } = await renderHook(() => useProximity(true));
-    expect(result.current.matchingState).toBe('finding');
-  });
-
-  it('should transition to "match_found" after delay and set distance to 0', async () => {
-    const { result } = await renderHook(() => useProximity(true));
-    expect(result.current.matchingState).toBe('scanning');
-
-    await act(async () => {
-      jest.advanceTimersByTime(5000);
-    });
-    expect(result.current.matchingState).toBe('pinging');
   it('should transition to "broadcasting" when active', async () => {
     const { result } = await renderHook(() => useProximity(true));
     expect(result.current.matchingState).toBe('broadcasting');
@@ -34,22 +35,25 @@ describe('useProximity', () => {
 
     expect(result.current.matchingState).toBe('broadcasting');
 
+    // To scanning
     await act(async () => {
       jest.advanceTimersByTime(3001);
     });
     expect(result.current.matchingState).toBe('scanning');
 
+    // To matching
     await act(async () => {
-      jest.advanceTimersByTime(4000);
+      jest.advanceTimersByTime(4001);
     });
     expect(result.current.matchingState).toBe('matching');
 
+    // To pinpointing
     await act(async () => {
-      jest.advanceTimersByTime(4000);
-      jest.advanceTimersByTime(5001);
+      jest.advanceTimersByTime(4001);
     });
     expect(result.current.matchingState).toBe('pinpointing');
 
+    // To match_found
     await act(async () => {
       jest.advanceTimersByTime(3001);
     });
@@ -58,11 +62,17 @@ describe('useProximity', () => {
     expect(result.current.signalBars).toBe(5);
   });
 
-  it('should decrease distance over time while finding', async () => {
+  it('should decrease distance over time while scanning/matching', async () => {
     const { result } = await renderHook(() => useProximity(true));
 
     expect(result.current.distance).toBe(100);
 
+    // Advance to scanning
+    await act(async () => {
+      jest.advanceTimersByTime(3001);
+    });
+
+    // Distance should decrease over time
     await act(async () => {
       jest.advanceTimersByTime(1500);
     });
@@ -73,9 +83,21 @@ describe('useProximity', () => {
   it('should transition to "bridge" when match is accepted', async () => {
     const { result } = await renderHook(() => useProximity(true));
 
+    // Fast forward to match_found
     await act(async () => {
-      jest.advanceTimersByTime(15000);
+      jest.advanceTimersByTime(3001);
     });
+    await act(async () => {
+      jest.advanceTimersByTime(4001);
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(4001);
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(3001);
+    });
+
+    expect(result.current.matchingState).toBe('match_found');
 
     await act(async () => {
       result.current.acceptMatch('My Anchor', (a, b) => ({ call: a, response: b }));
@@ -93,8 +115,19 @@ describe('useProximity', () => {
     });
 
     await act(async () => {
-      jest.advanceTimersByTime(15000);
+      jest.advanceTimersByTime(3001);
     });
+    await act(async () => {
+      jest.advanceTimersByTime(4001);
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(4001);
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(3001);
+    });
+
+    expect(result.current.matchingState).toBe('match_found');
 
     await act(async () => {
       await rerender({ active: false });
@@ -103,4 +136,4 @@ describe('useProximity', () => {
     expect(result.current.matchingState).toBe('none');
     expect(result.current.myAnchor).toBe('');
   });
-});})
+});
