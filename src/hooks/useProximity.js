@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
  * In a real-world scenario, this would interface with Bluetooth LE or Geolocation APIs.
  */
 export const useProximity = (isActive) => {
-  const [matchingState, setMatchingState] = useState('none'); // none, finding, match_found, bridge
+  const [matchingState, setMatchingState] = useState('none'); // none, broadcasting, scanning, matching, pinpointing, match_found, bridge
   const [myAnchor, setMyAnchor] = useState('');
   const [theirAnchor, setTheirAnchor] = useState('');
   const [matchData, setMatchData] = useState(null);
@@ -18,32 +18,49 @@ export const useProximity = (isActive) => {
 
     if (isActive) {
       if (matchingState === 'none') {
-        setMatchingState('finding');
+        setMatchingState('broadcasting');
         setDistance(100);
         setSignalBars(1);
+      } else if (matchingState === 'broadcasting') {
+        timer = setTimeout(() => {
+          setMatchingState('scanning');
+        }, 3000);
+      } else if (matchingState === 'scanning') {
+        timer = setTimeout(() => {
+          setMatchingState('matching');
+        }, 4000);
+      } else if (matchingState === 'matching') {
+        timer = setTimeout(() => {
+          setMatchingState('pinpointing');
+        }, 4000);
+      } else if (matchingState === 'pinpointing') {
+        timer = setTimeout(() => {
+          setMatchingState('match_found');
+        }, 3000);
       }
 
-      if (matchingState === 'finding') {
-        // Simulate finding a match after a random delay
-        timer = setTimeout(() => {
-          if (interval) clearInterval(interval);
-          setMatchingState('match_found');
+      if (matchingState === 'match_found') {
           setDistance(0);
           setSignalBars(5);
-        }, 7000 + Math.random() * 3000); // 7-10 seconds
+      }
 
-        // Random walk for signal/distance simulation while finding
-        interval = setInterval(() => {
-          setSignalBars(prev => {
-            const delta = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
-            return Math.max(1, Math.min(5, prev + delta));
-          });
-          setDistance(prev => {
-            // Gradually decrease distance
-            const decrease = Math.floor(Math.random() * 10) + 5; // 5-15 meters per interval
-            return Math.max(5, prev - decrease);
-          });
-        }, 1500);
+      // Random walk for signal/distance simulation while finding
+      if (!['none', 'match_found', 'bridge'].includes(matchingState)) {
+          interval = setInterval(() => {
+            setSignalBars(prev => {
+              if (matchingState === 'broadcasting') return 1;
+              if (matchingState === 'pinpointing') return 4 + (Math.random() > 0.5 ? 1 : 0);
+              const delta = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
+              return Math.max(1, Math.min(5, prev + delta));
+            });
+            setDistance(prev => {
+              if (matchingState === 'broadcasting') return 100;
+              if (matchingState === 'pinpointing') return 5 + Math.floor(Math.random() * 5);
+              // Gradually decrease distance
+              const decrease = Math.floor(Math.random() * 8) + 2;
+              return Math.max(10, prev - decrease);
+            });
+          }, 1500);
       }
     } else {
       setMatchingState('none');
