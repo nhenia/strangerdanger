@@ -3,7 +3,7 @@ import { StyleSheet, View, Animated, Easing, Text } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { Radio } from 'lucide-react-native';
 
-const Radar = ({ isActive }) => {
+const Radar = ({ isActive, matchingState }) => {
   const { theme } = useTheme();
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const [signalBars, setSignalBars] = useState(1);
@@ -12,14 +12,20 @@ const Radar = ({ isActive }) => {
   useEffect(() => {
     if (isActive) {
       // Pulse animation
-      Animated.loop(
+      let duration = 2000;
+      if (matchingState === 'signal_found') duration = 1000;
+      if (matchingState === 'connecting') duration = 500;
+
+      const pulse = Animated.loop(
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: 2000,
+          duration: duration,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         })
-      ).start();
+      );
+
+      pulse.start();
 
       // Random walk for signal/distance simulation
       const interval = setInterval(() => {
@@ -35,10 +41,11 @@ const Radar = ({ isActive }) => {
 
       return () => {
         pulseAnim.setValue(0);
+        pulse.stop();
         clearInterval(interval);
       };
     }
-  }, [isActive]);
+  }, [isActive, matchingState]);
 
   const styles = StyleSheet.create({
     container: {
@@ -83,6 +90,22 @@ const Radar = ({ isActive }) => {
     }
   });
 
+  const getStatusText = () => {
+    switch (matchingState) {
+      case 'searching': return theme.lcd ? 'Paging nearby...' : 'Searching for matches...';
+      case 'signal_found': return 'Signal detected...';
+      case 'connecting': return 'Establishing handshake...';
+      case 'match_found': return 'Match found!';
+      default: return theme.lcd ? 'Paging nearby...' : 'Searching for matches...';
+    }
+  };
+
+  const getDistanceText = () => {
+    if (matchingState === 'connecting') return 'Syncing...';
+    if (matchingState === 'signal_found') return 'Very close';
+    return `${distance}m away`;
+  };
+
   if (theme.lcd) {
     return (
       <View style={styles.container}>
@@ -92,24 +115,32 @@ const Radar = ({ isActive }) => {
               key={i}
               style={[
                 styles.bar,
-                { height: i * 8, opacity: i <= signalBars ? 1 : 0.2 }
+                {
+                  height: i * 8,
+                  opacity: i <= signalBars ? 1 : 0.2,
+                  backgroundColor: matchingState === 'connecting' ? theme.accent : theme.secondary
+                }
               ]}
             />
           ))}
         </View>
-        <Text style={styles.statusText}>Paging nearby...</Text>
-        <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>Signal: {signalBars}/5</Text>
+        <Text style={styles.statusText}>{getStatusText()}</Text>
+        <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>
+            {matchingState === 'searching' ? `Signal: ${signalBars}/5` : 'CONNECTED'}
+        </Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Animated.View style={styles.pulse} />
-      <Animated.View style={[styles.pulse, { delay: 1000 }]} />
-      <Radio color={theme.text} size={48} />
-      <Text style={styles.statusText}>Searching for matches...</Text>
-      <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>{distance}m away</Text>
+      <Animated.View style={[
+        styles.pulse,
+        { borderColor: matchingState === 'connecting' ? theme.accent : theme.secondary }
+      ]} />
+      <Radio color={matchingState === 'connecting' ? theme.accent : theme.text} size={48} />
+      <Text style={styles.statusText}>{getStatusText()}</Text>
+      <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>{getDistanceText()}</Text>
     </View>
   );
 };

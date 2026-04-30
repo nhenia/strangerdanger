@@ -10,18 +10,29 @@ describe('useProximity', () => {
     expect(result.current.matchingState).toBe('none');
   });
 
-  it('should transition to "finding" when active', async () => {
+  it('should transition to "searching" when active', async () => {
     const { result } = await renderHook(() => useProximity(true));
-    expect(result.current.matchingState).toBe('finding');
+    expect(result.current.matchingState).toBe('searching');
   });
 
-  it('should transition to "match_found" after delay', async () => {
+  it('should transition through states to "match_found" after delays', async () => {
     const { result } = await renderHook(() => useProximity(true));
 
-    await act(async () => {
-      jest.advanceTimersByTime(11000);
-    });
+    expect(result.current.matchingState).toBe('searching');
 
+    await act(async () => {
+      jest.advanceTimersByTime(5000); // Trigger searching -> signal_found
+    });
+    expect(result.current.matchingState).toBe('signal_found');
+
+    await act(async () => {
+      jest.advanceTimersByTime(4000); // Trigger signal_found -> connecting
+    });
+    expect(result.current.matchingState).toBe('connecting');
+
+    await act(async () => {
+      jest.advanceTimersByTime(3000); // Trigger connecting -> match_found
+    });
     expect(result.current.matchingState).toBe('match_found');
   });
 
@@ -29,7 +40,7 @@ describe('useProximity', () => {
     const { result } = await renderHook(() => useProximity(true));
 
     await act(async () => {
-      jest.advanceTimersByTime(11000);
+      jest.advanceTimersByTime(15000); // Advance through all states
     });
 
     await act(async () => {
@@ -48,7 +59,7 @@ describe('useProximity', () => {
     });
 
     await act(async () => {
-      jest.advanceTimersByTime(11000);
+      jest.advanceTimersByTime(15000);
     });
 
     await act(async () => {

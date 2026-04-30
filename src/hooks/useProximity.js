@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
  * In a real-world scenario, this would interface with Bluetooth LE or Geolocation APIs.
  */
 export const useProximity = (isActive) => {
-  const [matchingState, setMatchingState] = useState('none'); // none, finding, match_found, bridge
+  const [matchingState, setMatchingState] = useState('none'); // none, searching, signal_found, connecting, match_found, bridge
   const [myAnchor, setMyAnchor] = useState('');
   const [theirAnchor, setTheirAnchor] = useState('');
   const [matchData, setMatchData] = useState(null);
@@ -14,14 +14,25 @@ export const useProximity = (isActive) => {
     let timer;
     if (isActive) {
       if (matchingState === 'none') {
-        setMatchingState('finding');
+        setMatchingState('searching');
       }
 
-      if (matchingState === 'finding') {
-        // Simulate finding a match after a random delay
+      if (matchingState === 'searching') {
+        timer = setTimeout(() => {
+          setMatchingState('signal_found');
+        }, 3000 + Math.random() * 2000); // 3-5 seconds
+      }
+
+      if (matchingState === 'signal_found') {
+        timer = setTimeout(() => {
+          setMatchingState('connecting');
+        }, 2000 + Math.random() * 2000); // 2-4 seconds
+      }
+
+      if (matchingState === 'connecting') {
         timer = setTimeout(() => {
           setMatchingState('match_found');
-        }, 7000 + Math.random() * 3000); // 7-10 seconds
+        }, 2000 + Math.random() * 1000); // 2-3 seconds
       }
     } else {
       setMatchingState('none');

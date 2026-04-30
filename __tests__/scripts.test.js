@@ -15,4 +15,17 @@ describe('generateHandshake', () => {
     expect(handshake1.type).toBe('conversation');
     expect(handshake2.type).toBe('silent');
   });
+
+  it('should support the new humor category', () => {
+    const handshake = generateHandshake(['humor'], 'Rubber Duck', 'Stuffed Penguin');
+    expect(handshake.type).toBe('humor');
+    expect(handshake.call).toContain('Rubber Duck');
+    expect(handshake.response).toContain('Stuffed Penguin');
+  });
+
+  it('should handle multiple interaction types by picking one randomly', () => {
+    const types = ['conversation', 'silent', 'activity', 'humor'];
+    const handshake = generateHandshake(types, 'A', 'B');
+    expect(types).toContain(handshake.type);
+  });
 });
