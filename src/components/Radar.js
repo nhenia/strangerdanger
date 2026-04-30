@@ -3,43 +3,29 @@ import { StyleSheet, View, Animated, Easing, Text } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { Radio } from 'lucide-react-native';
 
-const Radar = ({ isActive, matchingState }) => {
+const Radar = ({ isActive, matchingState, distance, signalBars }) => {
   const { theme } = useTheme();
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (isActive) {
+      // Dynamic pulse duration based on state
       const pulseDuration =
         matchingState === 'scanning' ? 3000 :
         matchingState === 'pinging' ? 1500 :
-        matchingState === 'matching' ? 800 : 2000;
+        matchingState === 'matching' ? 1000 :
+        matchingState === 'pinpointing' ? 800 : 2000;
 
       // Pulse animation
       const animation = Animated.loop(
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: matchingState === 'pinpointing' ? 1000 : 2000,
+          duration: pulseDuration,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         })
       );
       animation.start();
-
-      // Random walk for signal/distance simulation
-      const interval = setInterval(() => {
-        setSignalBars(prev => {
-          if (matchingState === 'broadcasting') return 1;
-          if (matchingState === 'pinpointing') return 4 + Math.floor(Math.random() * 2);
-          const delta = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
-          return Math.max(1, Math.min(5, prev + delta));
-        });
-        setDistance(prev => {
-          if (matchingState === 'broadcasting') return 100;
-          if (matchingState === 'pinpointing') return 5 + Math.floor(Math.random() * 5);
-          const delta = Math.floor(Math.random() * 5) - 2; // -2 to 2
-          return Math.max(1, Math.min(100, prev + delta));
-        });
-      }, 1500);
 
       return () => {
         animation.stop();
@@ -97,6 +83,10 @@ const Radar = ({ isActive, matchingState }) => {
         return theme.lcd ? 'Initializing pager...' : 'Broadcasting presence...';
       case 'scanning':
         return theme.lcd ? 'Paging nearby...' : 'Scanning for peers...';
+      case 'pinging':
+        return theme.lcd ? 'Signal detected...' : 'Pinging peer...';
+      case 'matching':
+        return theme.lcd ? 'Syncing...' : 'Negotiating match...';
       case 'pinpointing':
         return theme.lcd ? 'Signal locked...' : 'Pinpointing match...';
       default:
@@ -113,14 +103,14 @@ const Radar = ({ isActive, matchingState }) => {
               key={i}
               style={[
                 styles.bar,
-                { height: i * 8, opacity: i <= signalBars ? 1 : 0.2 }
+                { height: i * 8, opacity: i <= (signalBars || 1) ? 1 : 0.2 }
               ]}
             />
           ))}
         </View>
         <Text style={styles.statusText}>{getStatusMessage()}</Text>
         <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>
-          {matchingState === 'broadcasting' ? 'Ready' : `Signal: ${signalBars}/5`}
+          {matchingState === 'broadcasting' ? 'Ready' : `Signal: ${signalBars || 1}/5`}
         </Text>
       </View>
     );
@@ -133,7 +123,7 @@ const Radar = ({ isActive, matchingState }) => {
       <Radio color={theme.text} size={48} />
       <Text style={styles.statusText}>{getStatusMessage()}</Text>
       <Text style={[styles.statusText, { fontSize: 14, opacity: 0.8 }]}>
-        {matchingState === 'broadcasting' ? 'Establishing frequency' : `${distance}m away`}
+        {matchingState === 'broadcasting' ? 'Establishing frequency' : `${distance || 100}m away`}
       </Text>
     </View>
   );
