@@ -3,6 +3,7 @@ import { useFonts, Inter_400Regular, Inter_700Bold } from '@expo-google-fonts/in
 import { VT323_400Regular } from '@expo-google-fonts/vt323';
 import { themes } from './themes';
 import { loadThemeId, saveThemeId } from '../utils/storage';
+import { View, Text } from 'react-native';
 
 const ThemeContext = createContext();
 
@@ -29,7 +30,11 @@ export const ThemeProvider = ({ children }) => {
   const theme = themes[themeId] || themes.pager;
 
   if (!fontsLoaded) {
-    return null; // Or a simple loader
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
+        <Text style={{ color: '#fff' }}>Loading Fonts...</Text>
+      </View>
+    );
   }
 
   return (
