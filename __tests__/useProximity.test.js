@@ -10,19 +10,29 @@ describe('useProximity', () => {
     expect(result.current.matchingState).toBe('none');
   });
 
-  it('should transition to "finding" when active', async () => {
+  it('should transition through granular states when active', async () => {
     const { result } = await renderHook(() => useProximity(true));
-    expect(result.current.matchingState).toBe('finding');
-  });
-
-  it('should transition to "match_found" after delay', async () => {
-    const { result } = await renderHook(() => useProximity(true));
+    expect(result.current.matchingState).toBe('searching');
+    expect(result.current.distance).toBe(100);
+    expect(result.current.signalStrength).toBe(1);
 
     await act(async () => {
-      jest.advanceTimersByTime(11000);
+        jest.advanceTimersByTime(5000);
     });
+    expect(result.current.matchingState).toBe('approaching');
+    expect(result.current.signalStrength).toBe(2);
 
+    await act(async () => {
+        jest.advanceTimersByTime(5000);
+    });
+    expect(result.current.matchingState).toBe('locking');
+    expect(result.current.signalStrength).toBe(4);
+
+    await act(async () => {
+        jest.advanceTimersByTime(3000);
+    });
     expect(result.current.matchingState).toBe('match_found');
+    expect(result.current.signalStrength).toBe(5);
   });
 
   it('should transition to "bridge" when match is accepted', async () => {

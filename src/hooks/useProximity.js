@@ -5,29 +5,52 @@ import { useState, useEffect, useCallback } from 'react';
  * In a real-world scenario, this would interface with Bluetooth LE or Geolocation APIs.
  */
 export const useProximity = (isActive) => {
-  const [matchingState, setMatchingState] = useState('none'); // none, finding, match_found, bridge
+  const [matchingState, setMatchingState] = useState('none'); // none, searching, approaching, locking, match_found, bridge
   const [myAnchor, setMyAnchor] = useState('');
   const [theirAnchor, setTheirAnchor] = useState('');
   const [matchData, setMatchData] = useState(null);
+  const [distance, setDistance] = useState(100);
+  const [signalStrength, setSignalStrength] = useState(0);
 
   useEffect(() => {
     let timer;
     if (isActive) {
       if (matchingState === 'none') {
-        setMatchingState('finding');
+        setMatchingState('searching');
+        setDistance(100);
+        setSignalStrength(1);
       }
 
-      if (matchingState === 'finding') {
-        // Simulate finding a match after a random delay
+      if (matchingState === 'searching') {
+        timer = setTimeout(() => {
+          setMatchingState('approaching');
+          setDistance(45 + Math.random() * 10);
+          setSignalStrength(2);
+        }, 3000 + Math.random() * 2000);
+      }
+
+      if (matchingState === 'approaching') {
+        timer = setTimeout(() => {
+          setMatchingState('locking');
+          setDistance(5 + Math.random() * 5);
+          setSignalStrength(4);
+        }, 3000 + Math.random() * 2000);
+      }
+
+      if (matchingState === 'locking') {
         timer = setTimeout(() => {
           setMatchingState('match_found');
-        }, 7000 + Math.random() * 3000); // 7-10 seconds
+          setDistance(1 + Math.random() * 2);
+          setSignalStrength(5);
+        }, 2000 + Math.random() * 1000);
       }
     } else {
       setMatchingState('none');
       setMyAnchor('');
       setTheirAnchor('');
       setMatchData(null);
+      setDistance(100);
+      setSignalStrength(0);
     }
 
     return () => clearTimeout(timer);
@@ -61,6 +84,8 @@ export const useProximity = (isActive) => {
     myAnchor,
     theirAnchor,
     matchData,
+    distance,
+    signalStrength,
     acceptMatch,
     reset
   };

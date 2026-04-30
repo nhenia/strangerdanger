@@ -22,6 +22,8 @@ const MainApp = () => {
     myAnchor,
     theirAnchor,
     matchData,
+    distance,
+    signalStrength,
     acceptMatch,
     reset
   } = useProximity(isActive);
@@ -56,7 +58,13 @@ const MainApp = () => {
       ) : matchingState === 'match_found' ? (
         <MatchFound onAccept={handleMatchAccept} />
       ) : (
-        <HomeScreen isActive={isActive} onToggle={handleToggleActive} />
+        <HomeScreen
+          isActive={isActive}
+          onToggle={handleToggleActive}
+          matchingState={matchingState}
+          distance={distance}
+          signalStrength={signalStrength}
+        />
       )}
     </SafeAreaView>
   );
