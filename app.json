@@ -26,11 +26,13 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro",
-      "baseUrl": "/strangerdanger"
+      "shortName": "Permission",
+      "name": "Permission App",
+      "themeColor": "#000000",
+      "backgroundColor": "#ffffff"
     },
-    "experiments": {
-      "baseUrl": "/strangerdanger"
-    }
+    "plugins": [
+      "./plugins/withAndroidOverlay.js"
+    ]
   }
 }

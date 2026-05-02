@@ -6,15 +6,7 @@ import { Settings, Info, Radio } from 'lucide-react-native';
 import Radar from '../components/Radar';
 import { loadNoList, saveNoList, loadInteractionTypes, saveInteractionTypes } from '../utils/storage';
 
-const interactionOptions = [
-  { id: 'conversation', label: 'Conversation' },
-  { id: 'silent', label: 'Silent Coexistence' },
-  { id: 'activity', label: 'Shared Activity' },
-  { id: 'humor', label: 'Humorous' },
-  { id: 'mysterious', label: 'Mysterious' },
-];
-
-const HomeScreen = ({ onToggle, isActive, matchingState, mood, onMoodChange }) => {
+const HomeScreen = ({ onToggle, isActive, mood, onMoodChange }) => {
   const { theme, setThemeId, themes } = useTheme();
   const [noList, setNoList] = useState('');
   const [interactionTypes, setInteractionTypesSelected] = useState(['conversation']);
@@ -42,13 +34,19 @@ const HomeScreen = ({ onToggle, isActive, matchingState, mood, onMoodChange }) =
       if (interactionTypes.length < 3) {
         newTypes = [...interactionTypes, id];
       } else {
-        // If already 3, replace the first one with the new one
-        newTypes = [...interactionTypes.slice(1), id];
+        // Replace the oldest one or just ignore? Let's ignore if at 3.
+        return;
       }
     }
     setInteractionTypesSelected(newTypes);
     await saveInteractionTypes(newTypes);
   };
+
+  const interactionOptions = [
+    { id: 'conversation', label: 'Conversation' },
+    { id: 'silent', label: 'Silent Coexistence' },
+    { id: 'activity', label: 'Shared Activity' },
+  ];
   const [showSettings, setShowSettings] = useState(false);
 
   const toggleActive = () => {
@@ -239,7 +237,7 @@ const HomeScreen = ({ onToggle, isActive, matchingState, mood, onMoodChange }) =
           </View>
         </View>
 
-        {isActive && <Radar isActive={isActive} matchingState={matchingState} />}
+        {isActive && <Radar isActive={isActive} />}
 
         {!isActive && (
           <>
