@@ -19,6 +19,8 @@ const MainApp = () => {
 
   const {
     matchingState,
+    distance,
+    signalStrength,
     myAnchor,
     theirAnchor,
     matchData,
@@ -33,7 +35,7 @@ const MainApp = () => {
 
   const handleMatchAccept = async (anchor) => {
     const interactionTypes = await loadInteractionTypes();
-    acceptMatch(anchor, (my, their) => generateHandshake(interactionTypes, my, their));
+    acceptMatch(anchor, interactionTypes, (types, my, their) => generateHandshake(types, my, their));
   };
 
   const handleDismiss = () => {
@@ -56,7 +58,13 @@ const MainApp = () => {
       ) : matchingState === 'match_found' ? (
         <MatchFound onAccept={handleMatchAccept} />
       ) : (
-        <HomeScreen isActive={isActive} onToggle={handleToggleActive} />
+        <HomeScreen
+          isActive={isActive}
+          onToggle={handleToggleActive}
+          matchingState={matchingState}
+          distance={distance}
+          signalStrength={signalStrength}
+        />
       )}
     </SafeAreaView>
   );

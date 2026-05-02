@@ -6,7 +6,7 @@ import { Settings, Info, Radio } from 'lucide-react-native';
 import Radar from '../components/Radar';
 import { loadNoList, saveNoList, loadInteractionTypes, saveInteractionTypes } from '../utils/storage';
 
-const HomeScreen = ({ onToggle, isActive }) => {
+const HomeScreen = ({ onToggle, isActive, matchingState, distance, signalStrength }) => {
   const { theme, setThemeId, themes } = useTheme();
   const [noList, setNoList] = useState('');
   const [interactionTypes, setInteractionTypesSelected] = useState(['conversation']);
@@ -46,6 +46,7 @@ const HomeScreen = ({ onToggle, isActive }) => {
     { id: 'conversation', label: 'Conversation' },
     { id: 'silent', label: 'Silent Coexistence' },
     { id: 'activity', label: 'Shared Activity' },
+    { id: 'creative', label: 'Creative Spark' },
   ];
   const [showSettings, setShowSettings] = useState(false);
 
@@ -192,7 +193,13 @@ const HomeScreen = ({ onToggle, isActive }) => {
           </View>
         </View>
 
-        {isActive && <Radar isActive={isActive} />}
+        {isActive && (
+          <Radar
+            matchingState={matchingState}
+            distance={distance}
+            signalStrength={signalStrength}
+          />
+        )}
 
         {!isActive && (
           <>
